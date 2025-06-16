@@ -1,0 +1,93 @@
+services:
+  poe-wrapper:
+    container_name: poe-wrapper
+    build: 
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    ports:
+      - "${PORT:-8000}:8000"
+    env_file:
+      - ../.env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - WORKERS=${WORKERS:-1}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-50}
+      - ENABLE_HEALTHCHECK=${ENABLE_HEALTHCHECK:-true}
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD-SHELL", "if [ \"$$ENABLE_HEALTHCHECK\" = \"true\" ]; then curl -f http://localhost:8000/health || exit 1; else exit 0; fi"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+      disable: false
+    
+    volumes:
+      - type: bind
+        source: ../logs
+        target: /app/logs
+        consistency: cached
+      - type: tmpfs
+        target: /app/tmp
+        tmpfs:
+          size: 100M
+    
+    networks:
+      - poe-network
+    
+    security_opt:
+      - no-new-privileges:true
+    
+    labels:
+      - "com.docker.compose.service=poe-wrapper"
+      - "com.docker.compose.project=poeopenaiwrapper"
+
+  ngrok:
+    container_name: poe-ngrok
+    image: ngrok/ngrok:latest
+    restart: unless-stopped
+    
+    command:
+      - "http"
+      - "poe-wrapper:8000"
+      - "--authtoken=${NGROK_AUTHTOKEN}"
+      - "--log=stdout"
+      - "--log-level=info"
+    
+    ports:
+      - "4040:4040"
+    
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    
+    networks:
+      - poe-network
+    
+    depends_on:
+      poe-wrapper:
+        condition: service_healthy
+    
+    labels:
+      - "com.docker.compose.service=ngrok"
+      - "com.docker.compose.project=poeopenaiwrapper"
+
+networks:
+  poe-network:
+    driver: bridge
+    name: poe-network
+    labels:
+      - "com.docker.compose.network=poe-network"
+      - "com.docker.compose.project=poeopenaiwrapper"
+
+volumes:
+  logs:
+    driver: local
+    labels:
+      - "com.docker.compose.volume=logs"
+      - "com.docker.compose.project=poeopenaiwrapper"
