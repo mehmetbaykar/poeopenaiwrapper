@@ -1,0 +1,7 @@
+fastapi-poe
+fastapi
+uvicorn[standard]
+pydantic
+httpx
+python-multipart
+python-dotenv
