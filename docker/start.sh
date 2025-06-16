@@ -21,8 +21,8 @@ validate_required_env() {
     }
     
     [ -n "${LOCAL_API_KEY:-}" ] || {
-        echo "WARNING: LOCAL_API_KEY not set, using default value"
-        export LOCAL_API_KEY="your-local-api-key"
+        echo "Error: LOCAL_API_KEY not set. Please set it in the .env file or run setup.sh"
+        exit 1
     }
 }
 
