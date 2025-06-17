@@ -1,5 +1,7 @@
 # POE OpenAI Wrapper
 
+`This project is not affiliated with, endorsed by, or sponsored by Poe.com or OpenAI. It is intended for educational and personal use. Users are responsible for complying with the Terms of Service of Poe.com and any other services they connect to via this wrapper. Use at your own discretion.`
+
 A local OpenAI-compatible API server wrapping the [POE.com](https://poe.com) API, allowing you to seamlessly integrate POE’s AI models with your IDEs (like Xcode or Cursor) through a familiar OpenAI API interface.
 
 ## What This Wrapper Does
