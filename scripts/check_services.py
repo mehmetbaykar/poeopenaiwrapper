@@ -1,7 +1,11 @@
 #!/usr/bin/env python
-import requests
-import time
+# pylint: disable=import-error
+"""Check service availability utilities."""
 import sys
+import time
+
+import requests
+
 
 def check_health():
     """Check if the POE wrapper service is healthy"""
@@ -14,13 +18,13 @@ def check_health():
 def wait_for_service(max_wait=30):
     """Wait for service to be ready"""
     print("⏳ Waiting for services to start...")
-    
+
     for _ in range(max_wait):
         if check_health():
             print("✅ POE Wrapper service is healthy")
             return True
         time.sleep(1)
-    
+
     print("⚠️ POE Wrapper service may not be ready yet")
     return False
 

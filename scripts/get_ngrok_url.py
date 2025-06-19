@@ -1,32 +1,36 @@
 #!/usr/bin/env python
-import requests
+# pylint: disable=import-error
+"""Retrieve the public ngrok URL."""
 import json
 import sys
+
+import requests
+
 
 def get_ngrok_url():
     """Get the current ngrok public URL"""
     try:
         response = requests.get("http://localhost:4040/api/tunnels", timeout=5)
         response.raise_for_status()
-        
+
         data = response.json()
         tunnels = data.get("tunnels", [])
-        
+
         for tunnel in tunnels:
             if tunnel.get("proto") == "https":
                 url = tunnel.get("public_url")
                 if url:
                     return url
-        
+
         # Fallback to http if https not found
         for tunnel in tunnels:
             if tunnel.get("proto") == "http":
                 url = tunnel.get("public_url")
                 if url:
                     return url.replace("http://", "https://")
-        
+
         return None
-        
+
     except requests.exceptions.RequestException as e:
         print(f"Error connecting to ngrok: {e}", file=sys.stderr)
         return None

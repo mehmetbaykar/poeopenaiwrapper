@@ -1,5 +1,8 @@
+"""Module."""
+# pylint: disable=import-error
+from typing import Any, Dict, List, Literal, Optional, Union
+
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any, Union, Literal
 
 
 # Function calling and tools models
@@ -67,8 +70,8 @@ class FileUpload(BaseModel):
 
 class ReasoningConfig(BaseModel):
     effort: Optional[str] = Field(None, description="Reasoning effort (low, medium, high)")
-    
-    
+
+
 class ChatCompletionRequest(BaseModel):
     model: str = Field(..., description="ID of the model to use")
     messages: List[ChatMessage] = Field(..., description="List of messages")
@@ -84,15 +87,15 @@ class ChatCompletionRequest(BaseModel):
     files: Optional[List[FileUpload]] = Field(None, description="Uploaded files")
     reasoning_effort: Optional[str] = Field(None, description="Reasoning effort for o1 models (low, medium, high)")
     reasoning: Optional[ReasoningConfig] = Field(None, description="Reasoning configuration for reasoning models")
-    
+
     # Function calling and tools
     tools: Optional[List[ChatCompletionFunctionTool]] = Field(None, description="Available tools for the model")
     tool_choice: Optional[Union[str, Dict[str, Any]]] = Field(None, description="Tool choice strategy")
     parallel_tool_calls: Optional[bool] = Field(None, description="Enable parallel tool calls")
-    
+
     # Response formatting
     response_format: Optional[Union[ResponseFormatText, ResponseFormatJSONObject, ResponseFormatJSONSchema]] = Field(None, description="Response format specification")
-    
+
     # Advanced parameters
     top_p: Optional[float] = Field(1.0, ge=0, le=1, description="Nucleus sampling parameter")
     n: Optional[int] = Field(1, ge=1, le=128, description="Number of completions to generate")
@@ -102,10 +105,10 @@ class ChatCompletionRequest(BaseModel):
     service_tier: Optional[Literal["auto", "default", "flex"]] = Field(None, description="Service tier for processing")
     store: Optional[bool] = Field(None, description="Store the conversation for model distillation")
     metadata: Optional[Dict[str, str]] = Field(None, description="Metadata for the request")
-    
+
     # Streaming options
     stream_options: Optional[Dict[str, Any]] = Field(None, description="Streaming configuration options")
-    
+
     # Modalities (experimental)
     modalities: Optional[List[str]] = Field(None, description="Output modalities (text, audio)")
 

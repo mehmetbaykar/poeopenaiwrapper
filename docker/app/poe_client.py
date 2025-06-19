@@ -1,10 +1,14 @@
-import fastapi_poe as fp
-from typing import List, AsyncGenerator, Tuple, Optional, Literal, cast
-from .models import ChatMessage
-from .config import POE_API_KEY, AVAILABLE_MODELS, REASONING_MODELS
-from .exceptions import PoeAPIError
+"""Module."""
+# pylint: disable=import-error
 import logging
 import re
+from typing import AsyncGenerator, List, Literal, Optional, Tuple, cast
+
+import fastapi_poe as fp
+
+from .config import AVAILABLE_MODELS, POE_API_KEY, REASONING_MODELS
+from .exceptions import PoeAPIError
+from .models import ChatMessage
 
 logger = logging.getLogger(__name__)
 
@@ -24,19 +28,19 @@ class PoeClient:
         """Estimate reasoning tokens from response text."""
         if not text:
             return 0
-        
+
         # Extract all reasoning content with unified patterns
         reasoning_patterns = [
             r'<(?:thinking|think|reasoning)>(.*?)</(?:thinking|think|reasoning)>',  # XML tags
             r'\*Thinking\.\.\.\*\s*\n\n>(.*?)(?=\n\n[^>]|$)',  # Block quotes
             r'(?:Let me (?:think|analyze)|I need to consider|My reasoning|Step-by-step).*?(?=\n\n|$)',  # Explicit reasoning
         ]
-        
+
         reasoning_content = ""
         for pattern in reasoning_patterns:
             matches = re.findall(pattern, text, re.DOTALL | re.IGNORECASE)
             reasoning_content += " ".join(matches)
-        
+
         # Handle O1-style thinking dots
         thinking_count = text.count('Thinking...')
         if thinking_count > 0:
@@ -47,7 +51,7 @@ class PoeClient:
                 return max_time * 75  # ~75 tokens per second
             else:
                 reasoning_content += " " * (thinking_count * 40)  # ~10 tokens per occurrence
-        
+
         # Convert characters to tokens (roughly 1 token per 4 characters)
         return max(len(reasoning_content) // 4, 0)
 
@@ -57,12 +61,12 @@ class PoeClient:
         """Format OpenAI reasoning models to match normal ai thinking format."""
         if not raw_response or "Thinking..." not in raw_response:
             return raw_response
-        
+
         # Remove "Thinking..." noise and clean up formatting
         clean_response = re.sub(r'(?<!^\*)\bThinking\.\.\.(?:\s*\([0-9]+s elapsed\))?\s*', '', raw_response)
         clean_response = re.sub(r'\s{3,}', ' ', clean_response)
         clean_response = re.sub(r'\n{3,}', '\n\n', clean_response).strip()
-        
+
         # Format with Normal AI thinking-style header
         return f"*Thinking...*\n\n{clean_response}" if clean_response else "*Thinking...*\n\nI'm thinking about your request."
 
@@ -97,23 +101,23 @@ class PoeClient:
     def convert_to_poe_messages(messages: List[ChatMessage], attachments: Optional[List[fp.Attachment]] = None) -> List[fp.ProtocolMessage]:
         if not messages:
             raise PoeAPIError("At least one message is required", 400)
-            
+
         poe_messages = []
-        
+
         for i, msg in enumerate(messages):
             # Convert role and format content
             role_mapping = {"assistant": "bot", "user": "user", "system": "system"}
             poe_role = role_mapping.get(msg.role, "user")
-            
+
             text_content = PoeClient._extract_text_content(msg.content)
             content = f"{poe_role.title()}: {text_content}" if poe_role != "user" else f"User: {text_content}"
-            
+
             # Add attachments only to the last message
             msg_attachments = attachments if i == len(messages) - 1 else None
-            
+
             # Cast role to valid type
             valid_role = cast(Literal["system", "user", "bot"], poe_role)
-            
+
             # Create message with or without attachments
             if msg_attachments:
                 poe_message = fp.ProtocolMessage(
@@ -127,12 +131,12 @@ class PoeClient:
                     content=content or ""
                 )
             poe_messages.append(poe_message)
-        
+
         return poe_messages
 
     async def get_streaming_response(
-        self, 
-        messages: List[fp.ProtocolMessage], 
+        self,
+        messages: List[fp.ProtocolMessage],
         model: str
     ) -> AsyncGenerator[fp.PartialResponse, None]:
         try:
@@ -150,7 +154,7 @@ class PoeClient:
             logger.error(f"Error type: {type(e).__name__}")
             import traceback
             logger.error(f"Full traceback: {traceback.format_exc()}")
-            
+
             # Check for specific error types
             error_msg = str(e).lower()
             if "unauthorized" in error_msg or "invalid api key" in error_msg:
@@ -161,8 +165,8 @@ class PoeClient:
                 raise PoeAPIError(f"Error communicating with Poe: {str(e)}", 502)
 
     async def get_complete_response(
-        self, 
-        messages: List[fp.ProtocolMessage], 
+        self,
+        messages: List[fp.ProtocolMessage],
         model: str
     ) -> Tuple[str, int]:
         """
@@ -176,9 +180,9 @@ class PoeClient:
             async for partial in self.get_streaming_response(messages, model):
                 if hasattr(partial, 'text') and partial.text:
                     complete_response += partial.text
-                    
+
             logger.info(f"Received complete response of {len(complete_response)} characters")
-            
+
             # For reasoning models, process and format the response
             if self.is_reasoning_model(model):
                 # Check if response has raw "Thinking..." noise
@@ -195,7 +199,7 @@ class PoeClient:
                     return complete_response, reasoning_tokens
             else:
                 return complete_response, 0
-                
+
         except PoeAPIError:
             raise
         except Exception as e:

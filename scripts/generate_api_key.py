@@ -1,6 +1,9 @@
 #!/usr/bin/env python
+# pylint: disable=import-error
+"""Generate a random API key."""
 import secrets
 import string
+
 
 def generate_api_key(length=64):
     """Generate a secure API key"""

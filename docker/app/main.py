@@ -1,28 +1,28 @@
-import time
+"""Module."""
+# pylint: disable=import-error
 import os
+import time
 from typing import List
-from fastapi import FastAPI, Depends, File, UploadFile, Form, Request
-from fastapi.middleware.cors import CORSMiddleware
+
+from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from .models import (
-    ChatCompletionRequest, ModelsResponse, CompletionRequest, 
-    ModerationRequest,
-    AssistantCreateRequest, ThreadCreateRequest, RunCreateRequest
-)
-from .auth import verify_api_key
 from .api import APIHandler
-from .file_handler import FileManager
 from .assistants import AssistantManager
+from .auth import verify_api_key
+from .exceptions import (FileUploadError, PoeAPIError,
+                         file_upload_exception_handler,
+                         general_exception_handler, http_exception_handler,
+                         poe_api_exception_handler,
+                         validation_exception_handler)
+from .file_handler import FileManager
 from .logging_config import setup_logging
-from .exceptions import (
-    PoeAPIError, FileUploadError,
-    validation_exception_handler, http_exception_handler,
-    poe_api_exception_handler, file_upload_exception_handler,
-    general_exception_handler
-)
+from .models import (AssistantCreateRequest, ChatCompletionRequest,
+                     CompletionRequest, ModelsResponse, ModerationRequest,
+                     RunCreateRequest, ThreadCreateRequest)
 
 logger = setup_logging(
     log_level=os.getenv("LOG_LEVEL", "INFO"),
@@ -34,7 +34,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
         logger.info(f"Request: {request.method} {request.url}")
-        
+
         try:
             response = await call_next(request)
             process_time = time.time() - start_time
@@ -80,7 +80,7 @@ async def root():
         "version": "0.0.1",
         "endpoints": [
             "/v1/models",
-            "/v1/chat/completions", 
+            "/v1/chat/completions",
             "/v1/completions",
             "/v1/moderations",
             "/v1/files",
@@ -117,7 +117,7 @@ async def create_chat_completion_with_files(
     except (json.JSONDecodeError, ValueError) as e:
         from .exceptions import PoeAPIError
         raise PoeAPIError(f"Invalid JSON in request field: {str(e)}", 400)
-    
+
     attachments = await file_manager.process_files(files)
     return await api_handler.create_chat_completion(chat_request, attachments)
 

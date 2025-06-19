@@ -1,9 +1,12 @@
-from fastapi import HTTPException, Request, status
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
+"""Module."""
+# pylint: disable=import-error
 import logging
 from typing import Union
+
+from fastapi import HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -38,17 +41,17 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 async def http_exception_handler(request: Request, exc: Union[HTTPException, StarletteHTTPException]):
     logger.error(f"HTTP error for {request.url}: {exc.detail}")
-    
+
     if exc.status_code == 401:
         if isinstance(exc.detail, dict) and "error" in exc.detail:
             return JSONResponse(status_code=exc.status_code, content=exc.detail)
-    
+
     return JSONResponse(
         status_code=exc.status_code,
         content={
             "error": {
                 "message": exc.detail,
-                "type": "http_error", 
+                "type": "http_error",
                 "code": exc.status_code
             }
         }

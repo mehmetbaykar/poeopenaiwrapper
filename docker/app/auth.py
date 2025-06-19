@@ -1,8 +1,12 @@
-from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from .config import LOCAL_API_KEY
-import secrets
+"""Module."""
+# pylint: disable=import-error
 import logging
+import secrets
+
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from .config import LOCAL_API_KEY
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
@@ -15,17 +19,17 @@ def verify_api_key(request: Request, credentials: HTTPAuthorizationCredentials =
     """
     provided_key = None
     auth_method = None
-    
+
     # Method 1: Authorization Bearer header (Cursor IDE standard)
     if credentials and credentials.credentials:
         provided_key = credentials.credentials.strip()
         auth_method = "Authorization Bearer"
-    
+
     # Method 2: x-api-key header (Xcode default)
     elif "x-api-key" in request.headers:
         provided_key = request.headers["x-api-key"].strip()
         auth_method = "x-api-key header"
-    
+
     # Method 3: Check Authorization header without Bearer prefix
     elif "authorization" in request.headers:
         auth_value = request.headers["authorization"].strip()
@@ -35,9 +39,9 @@ def verify_api_key(request: Request, credentials: HTTPAuthorizationCredentials =
         else:
             provided_key = auth_value
             auth_method = "Authorization (raw)"
-    
+
     logger.info(f"Auth attempt via {auth_method} for {request.method} {request.url}")
-    
+
     if not provided_key:
         logger.error(f"AUTH FAILURE: No API key provided")
         logger.error(f"Available headers: {list(request.headers.keys())}")
@@ -52,7 +56,7 @@ def verify_api_key(request: Request, credentials: HTTPAuthorizationCredentials =
                 }
             }
         )
-    
+
     # Validate API key
     if not secrets.compare_digest(provided_key, LOCAL_API_KEY):
         logger.error(f"AUTH FAILURE: Invalid API key via {auth_method}")
@@ -68,6 +72,6 @@ def verify_api_key(request: Request, credentials: HTTPAuthorizationCredentials =
                 }
             }
         )
-    
+
     logger.info(f"AUTH SUCCESS: Valid API key via {auth_method}")
     return provided_key
