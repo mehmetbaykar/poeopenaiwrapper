@@ -55,7 +55,7 @@ class FileManager:
             raise
         except Exception as e:
             logger.error(f"Failed to upload file {file.filename} to Poe: {e}")
-            raise FileUploadError(f"Failed to upload file: {str(e)}", 500)
+            raise FileUploadError(f"Failed to upload file: {str(e)}", 500) from e
         finally:
             if temp_file_path and os.path.exists(temp_file_path):
                 try:

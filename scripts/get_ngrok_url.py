@@ -33,7 +33,7 @@ def get_ngrok_url():
     except requests.exceptions.RequestException as e:
         print(f"Error connecting to ngrok: {e}", file=sys.stderr)
         return None
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error parsing ngrok response: {e}", file=sys.stderr)
         return None
 

@@ -3,6 +3,7 @@
 import logging
 import time
 import uuid
+import json
 from typing import AsyncGenerator, List, Optional, Union
 
 from fastapi.responses import StreamingResponse
@@ -86,39 +87,38 @@ class APIHandler:
                                 yield f"data: {thinking_chunk.model_dump_json()}\n\n"
                             # Skip the actual "Thinking..." noise chunk
                             continue
-                        else:
-                            # This is clean content
-                            if thinking_started and not thinking_finished:
-                                # Send the separator between thinking and content
-                                thinking_finished = True
-                                separator_chunk = ChatCompletionStreamResponse(
-                                    id=request_id,
-                                    created=int(time.time()),
-                                    model=request.model,
-                                    choices=[
-                                        ChatCompletionStreamChoice(
-                                            index=0,
-                                            delta={"content": "\n\n"},
-                                            finish_reason=None
-                                        )
-                                    ]
-                                )
-                                yield f"data: {separator_chunk.model_dump_json()}\n\n"
-
-                            # Send the clean content
-                            chunk = ChatCompletionStreamResponse(
+                        # This is clean content
+                        if thinking_started and not thinking_finished:
+                            # Send the separator between thinking and content
+                            thinking_finished = True
+                            separator_chunk = ChatCompletionStreamResponse(
                                 id=request_id,
                                 created=int(time.time()),
                                 model=request.model,
                                 choices=[
                                     ChatCompletionStreamChoice(
                                         index=0,
-                                        delta={"content": partial.text},
+                                        delta={"content": "\n\n"},
                                         finish_reason=None
                                     )
                                 ]
                             )
-                            yield f"data: {chunk.model_dump_json()}\n\n"
+                            yield f"data: {separator_chunk.model_dump_json()}\n\n"
+
+                        # Send the clean content
+                        chunk = ChatCompletionStreamResponse(
+                            id=request_id,
+                            created=int(time.time()),
+                            model=request.model,
+                            choices=[
+                                ChatCompletionStreamChoice(
+                                    index=0,
+                                    delta={"content": partial.text},
+                                    finish_reason=None
+                                )
+                            ]
+                        )
+                        yield f"data: {chunk.model_dump_json()}\n\n"
 
                 final_chunk = ChatCompletionStreamResponse(
                     id=request_id,
@@ -152,7 +152,7 @@ class APIHandler:
                 )
                 yield f"data: {error_chunk.model_dump_json()}\n\n"
                 yield "data: [DONE]\n\n"
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.exception(f"Unexpected error in streaming for request {request_id}: {e}")
                 error_chunk = ChatCompletionStreamResponse(
                     id=request_id,
@@ -184,7 +184,10 @@ class APIHandler:
         request: ChatCompletionRequest,
         attachments: Optional[List] = None
     ) -> Union[ChatCompletionResponse, StreamingResponse]:
-        logger.info(f"Chat completion: model={request.model}, stream={request.stream}, messages={len(request.messages)}")
+        # pylint: disable=too-many-locals
+        logger.info(
+            f"Chat completion: model={request.model}, stream={request.stream}, messages={len(request.messages)}"
+        )
 
         message_summary = []
         for msg in request.messages:
@@ -203,7 +206,7 @@ class APIHandler:
         try:
             PoeClient.validate_model(poe_model_name)
             logger.info(f"Model {poe_model_name} validated successfully")
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error(f"Model validation failed for {poe_model_name}: {e}")
             raise
 
@@ -217,7 +220,7 @@ class APIHandler:
             return await self.create_streaming_response(request, poe_messages, request_id, poe_model_name)
 
         # Get response from Poe (raw content, with reasoning token estimation) using POE model name
-        complete_text, reasoning_tokens = await self.poe_client.get_complete_response(poe_messages, poe_model_name)
+        complete_text, _reasoning_tokens = await self.poe_client.get_complete_response(poe_messages, poe_model_name)
 
         # IMPORTANT: Always forward the complete raw response from Poe
         # Do not modify or filter the content - let the client handle it
@@ -238,7 +241,7 @@ class APIHandler:
         prompt_details = None
         if PoeClient.is_reasoning_model(request.model):
             completion_details = CompletionTokensDetails(
-                reasoning_tokens=reasoning_tokens,
+                reasoning_tokens=_reasoning_tokens,
                 audio_tokens=None
             )
             prompt_details = PromptTokensDetails(
@@ -246,7 +249,9 @@ class APIHandler:
                 audio_tokens=None
             )
 
-        logger.info(f"Generated response with {completion_tokens} tokens ({reasoning_tokens} reasoning) for request {request_id}")
+        logger.info(
+            f"Generated response with {completion_tokens} tokens ({_reasoning_tokens} reasoning) for request {request_id}"
+        )
 
         # Create assistant message - always raw content, no tool calls
         assistant_message = ChatMessage(
@@ -296,7 +301,7 @@ class APIHandler:
         request_id = f"cmpl-{uuid.uuid4().hex[:29]}"
 
         # Get response from Poe using POE model name
-        complete_text, reasoning_tokens = await self.poe_client.get_complete_response(poe_messages, poe_model_name)
+        complete_text, _reasoning_tokens = await self.poe_client.get_complete_response(poe_messages, poe_model_name)
 
         prompt_tokens = len(request.prompt.split())
         completion_tokens = len(complete_text.split())
@@ -320,6 +325,7 @@ class APIHandler:
         )
 
     async def create_moderation(self, request: ModerationRequest) -> ModerationResponse:
+        # pylint: disable=too-many-locals
         """Create moderation - Use chat completion for basic content moderation"""
         logger.info("Creating moderation using chat completion")
 
@@ -355,7 +361,6 @@ Respond with only the JSON, no other text."""
                 response_text, _ = await self.poe_client.get_complete_response(poe_messages, "gpt-4o-mini")
 
                 # Try to parse JSON response
-                import json
                 try:
                     parsed = json.loads(response_text.strip())
                     flagged = parsed.get("flagged", False)
@@ -394,7 +399,7 @@ Respond with only the JSON, no other text."""
                     category_scores=category_scores
                 ))
 
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.error(f"Moderation failed for text: {e}")
                 # Default safe response
                 safe_categories = ModerationCategories(

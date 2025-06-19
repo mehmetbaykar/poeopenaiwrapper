@@ -1,6 +1,7 @@
 """Module."""
 # pylint: disable=import-error
 import os
+import logging
 from typing import Any, Dict, List
 
 MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
@@ -68,8 +69,6 @@ ALLOWED_FILE_TYPES = [
     "image/gif",
     "image/webp"
 ]
-
-import logging
 
 config_logger = logging.getLogger(__name__)
 

@@ -43,7 +43,7 @@ def verify_api_key(request: Request, credentials: HTTPAuthorizationCredentials =
     logger.info(f"Auth attempt via {auth_method} for {request.method} {request.url}")
 
     if not provided_key:
-        logger.error(f"AUTH FAILURE: No API key provided")
+        logger.error("AUTH FAILURE: No API key provided")
         logger.error(f"Available headers: {list(request.headers.keys())}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

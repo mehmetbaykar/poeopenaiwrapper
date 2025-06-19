@@ -2,6 +2,7 @@
 # pylint: disable=import-error
 import logging
 import re
+import traceback
 from typing import AsyncGenerator, List, Literal, Optional, Tuple, cast
 
 import fastapi_poe as fp
@@ -49,8 +50,7 @@ class PoeClient:
             if time_matches:
                 max_time = max(int(t) for t in time_matches)
                 return max_time * 75  # ~75 tokens per second
-            else:
-                reasoning_content += " " * (thinking_count * 40)  # ~10 tokens per occurrence
+            reasoning_content += " " * (thinking_count * 40)  # ~10 tokens per occurrence
 
         # Convert characters to tokens (roughly 1 token per 4 characters)
         return max(len(reasoning_content) // 4, 0)
@@ -84,7 +84,7 @@ class PoeClient:
         """Extract text content from complex message formats"""
         if isinstance(content, str):
             return content
-        elif isinstance(content, list):
+        if isinstance(content, list):
             text_parts = []
             for item in content:
                 if isinstance(item, dict):
@@ -149,20 +149,24 @@ class PoeClient:
             ):
                 logger.debug(f"Received partial response: {partial}")
                 yield partial
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error(f"Error streaming from Poe model {model}: {e}")
             logger.error(f"Error type: {type(e).__name__}")
-            import traceback
             logger.error(f"Full traceback: {traceback.format_exc()}")
 
             # Check for specific error types
             error_msg = str(e).lower()
             if "unauthorized" in error_msg or "invalid api key" in error_msg:
-                raise PoeAPIError(f"POE API authentication failed for model '{model}'. Check your POE_API_KEY or model availability.", 401)
-            elif "not found" in error_msg or "unknown model" in error_msg:
-                raise PoeAPIError(f"Model '{model}' not found in POE. Available models: {AVAILABLE_MODELS}", 404)
-            else:
-                raise PoeAPIError(f"Error communicating with Poe: {str(e)}", 502)
+                raise PoeAPIError(
+                    f"POE API authentication failed for model '{model}'. Check your POE_API_KEY or model availability.",
+                    401,
+                ) from e
+            if "not found" in error_msg or "unknown model" in error_msg:
+                raise PoeAPIError(
+                    f"Model '{model}' not found in POE. Available models: {AVAILABLE_MODELS}",
+                    404,
+                ) from e
+            raise PoeAPIError(f"Error communicating with Poe: {str(e)}", 502) from e
 
     async def get_complete_response(
         self,
@@ -190,18 +194,20 @@ class PoeClient:
                     # Format the response to match normal ai thinking format
                     clean_response = self.remove_thinking_noise(complete_response)
                     reasoning_tokens = self.estimate_reasoning_tokens(complete_response)
-                    logger.info(f"Reasoning model response cleaned: {len(clean_response)} chars, ~{reasoning_tokens} reasoning tokens")
+                    logger.info(
+                        f"Reasoning model response cleaned: {len(clean_response)} chars, ~{reasoning_tokens} reasoning tokens"
+                    )
                     return clean_response, reasoning_tokens
-                else:
-                    # For models already in correct format, return as-is
-                    reasoning_tokens = self.estimate_reasoning_tokens(complete_response)
-                    logger.info(f"Reasoning model response: {len(complete_response)} chars, ~{reasoning_tokens} reasoning tokens")
-                    return complete_response, reasoning_tokens
-            else:
-                return complete_response, 0
+                # For models already in correct format, return as-is
+                reasoning_tokens = self.estimate_reasoning_tokens(complete_response)
+                logger.info(
+                    f"Reasoning model response: {len(complete_response)} chars, ~{reasoning_tokens} reasoning tokens"
+                )
+                return complete_response, reasoning_tokens
+            return complete_response, 0
 
         except PoeAPIError:
             raise
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error(f"Error getting complete response from Poe model {model}: {e}")
-            raise PoeAPIError(f"Error communicating with Poe: {str(e)}", 502)
+            raise PoeAPIError(f"Error communicating with Poe: {str(e)}", 502) from e

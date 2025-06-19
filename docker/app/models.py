@@ -1,5 +1,5 @@
 """Module."""
-# pylint: disable=import-error
+# pylint: disable=import-error,too-few-public-methods
 from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field

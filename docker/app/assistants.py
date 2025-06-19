@@ -178,8 +178,15 @@ class AssistantManager:
             "deleted": True
         }
 
-    async def create_message(self, thread_id: str, role: str, content: Any,
-                           attachments: Optional[List] = None, metadata: Optional[Dict] = None) -> ThreadMessage:
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
+    async def create_message(
+        self,
+        thread_id: str,
+        role: str,
+        content: Any,
+        attachments: Optional[List] = None,
+        metadata: Optional[Dict] = None,
+    ) -> ThreadMessage:
         """Create a message in a thread"""
         if thread_id not in self.threads_db:
             raise PoeAPIError(f"Thread {thread_id} not found", 404)
