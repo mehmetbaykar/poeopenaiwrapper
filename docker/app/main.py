@@ -1,28 +1,34 @@
-import time
+"""Module."""
+# pylint: disable=import-error
+import json
 import os
+import time
+import traceback
 from typing import List
-from fastapi import FastAPI, Depends, File, UploadFile, Form, Request
-from fastapi.middleware.cors import CORSMiddleware
+
+from fastapi import Depends, FastAPI, File, Form, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from .models import (
-    ChatCompletionRequest, ModelsResponse, CompletionRequest, 
-    ModerationRequest,
-    AssistantCreateRequest, ThreadCreateRequest, RunCreateRequest
-)
-from .auth import verify_api_key
 from .api import APIHandler
-from .file_handler import FileManager
 from .assistants import AssistantManager
-from .logging_config import setup_logging
+from .auth import verify_api_key
 from .exceptions import (
-    PoeAPIError, FileUploadError,
-    validation_exception_handler, http_exception_handler,
-    poe_api_exception_handler, file_upload_exception_handler,
-    general_exception_handler
+    FileUploadError,
+    PoeAPIError,
+    file_upload_exception_handler,
+    general_exception_handler,
+    http_exception_handler,
+    poe_api_exception_handler,
+    validation_exception_handler,
 )
+from .file_handler import FileManager
+from .logging_config import setup_logging
+from .models import (AssistantCreateRequest, ChatCompletionRequest,
+                     CompletionRequest, ModelsResponse, ModerationRequest,
+                     RunCreateRequest, ThreadCreateRequest)
 
 logger = setup_logging(
     log_level=os.getenv("LOG_LEVEL", "INFO"),
@@ -30,11 +36,11 @@ logger = setup_logging(
 )
 
 
-class RequestLoggingMiddleware(BaseHTTPMiddleware):
+class RequestLoggingMiddleware(BaseHTTPMiddleware):  # pylint: disable=too-few-public-methods
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
         logger.info(f"Request: {request.method} {request.url}")
-        
+
         try:
             response = await call_next(request)
             process_time = time.time() - start_time
@@ -43,7 +49,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             process_time = time.time() - start_time
             logger.error(f"Request failed after {process_time:.3f}s: {e}")
-            import traceback
             logger.error(f"Full traceback: {traceback.format_exc()}")
             raise
 
@@ -80,7 +85,7 @@ async def root():
         "version": "0.0.1",
         "endpoints": [
             "/v1/models",
-            "/v1/chat/completions", 
+            "/v1/chat/completions",
             "/v1/completions",
             "/v1/moderations",
             "/v1/files",
@@ -91,14 +96,14 @@ async def root():
 
 
 @app.get("/v1/models", response_model=ModelsResponse)
-async def list_models(api_key: str = Depends(verify_api_key)):
+async def list_models(_api_key: str = Depends(verify_api_key)):
     return await api_handler.list_models()
 
 
 @app.post("/v1/chat/completions")
 async def create_chat_completion(
     request: ChatCompletionRequest,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     attachments = []
     return await api_handler.create_chat_completion(request, attachments)
@@ -108,16 +113,14 @@ async def create_chat_completion(
 async def create_chat_completion_with_files(
     request: str = Form(...),
     files: List[UploadFile] = File(...),
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
-    import json
     try:
         request_data = json.loads(request)
         chat_request = ChatCompletionRequest(**request_data)
     except (json.JSONDecodeError, ValueError) as e:
-        from .exceptions import PoeAPIError
-        raise PoeAPIError(f"Invalid JSON in request field: {str(e)}", 400)
-    
+        raise PoeAPIError(f"Invalid JSON in request field: {str(e)}", 400) from e
+
     attachments = await file_manager.process_files(files)
     return await api_handler.create_chat_completion(chat_request, attachments)
 
@@ -125,7 +128,7 @@ async def create_chat_completion_with_files(
 @app.post("/v1/files/upload")
 async def upload_files(
     files: List[UploadFile] = File(...),
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     attachments = await file_manager.process_files(files)
     return {
@@ -137,21 +140,21 @@ async def upload_files(
 @app.post("/v1/completions")
 async def create_completion(
     request: CompletionRequest,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await api_handler.create_completion(request)
 
 @app.post("/v1/moderations")
 async def create_moderation(
     request: ModerationRequest,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await api_handler.create_moderation(request)
 
 
 @app.get("/v1/files")
 async def list_files(
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await file_manager.list_files()
 
@@ -159,7 +162,7 @@ async def list_files(
 @app.get("/v1/files/{file_id}")
 async def get_file(
     file_id: str,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await file_manager.get_file(file_id)
 
@@ -167,7 +170,7 @@ async def get_file(
 @app.delete("/v1/files/{file_id}")
 async def delete_file(
     file_id: str,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await file_manager.delete_file(file_id)
 
@@ -176,7 +179,7 @@ async def delete_file(
 @app.post("/v1/assistants")
 async def create_assistant(
     request: AssistantCreateRequest,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await assistant_manager.create_assistant(request)
 
@@ -185,7 +188,7 @@ async def create_assistant(
 async def list_assistants(
     limit: int = 20,
     order: str = "desc",
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await assistant_manager.list_assistants(limit=limit, order=order)
 
@@ -193,7 +196,7 @@ async def list_assistants(
 @app.get("/v1/assistants/{assistant_id}")
 async def get_assistant(
     assistant_id: str,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await assistant_manager.get_assistant(assistant_id)
 
@@ -202,7 +205,7 @@ async def get_assistant(
 async def update_assistant(
     assistant_id: str,
     request: AssistantCreateRequest,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await assistant_manager.update_assistant(assistant_id, request)
 
@@ -210,7 +213,7 @@ async def update_assistant(
 @app.delete("/v1/assistants/{assistant_id}")
 async def delete_assistant(
     assistant_id: str,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await assistant_manager.delete_assistant(assistant_id)
 
@@ -219,7 +222,7 @@ async def delete_assistant(
 @app.post("/v1/threads")
 async def create_thread(
     request: ThreadCreateRequest,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await assistant_manager.create_thread(request)
 
@@ -227,7 +230,7 @@ async def create_thread(
 @app.get("/v1/threads/{thread_id}")
 async def get_thread(
     thread_id: str,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await assistant_manager.get_thread(thread_id)
 
@@ -235,7 +238,7 @@ async def get_thread(
 @app.delete("/v1/threads/{thread_id}")
 async def delete_thread(
     thread_id: str,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await assistant_manager.delete_thread(thread_id)
 
@@ -244,7 +247,7 @@ async def delete_thread(
 async def list_messages(
     thread_id: str,
     limit: int = 20,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await assistant_manager.list_messages(thread_id, limit=limit)
 
@@ -253,7 +256,7 @@ async def list_messages(
 async def create_message(
     thread_id: str,
     request: dict,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await assistant_manager.create_message(
         thread_id=thread_id,
@@ -268,7 +271,7 @@ async def create_message(
 async def create_run(
     thread_id: str,
     request: RunCreateRequest,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await assistant_manager.create_run(thread_id, request)
 
@@ -277,7 +280,7 @@ async def create_run(
 async def list_runs(
     thread_id: str,
     limit: int = 20,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await assistant_manager.list_runs(thread_id, limit=limit)
 
@@ -286,7 +289,7 @@ async def list_runs(
 async def get_run(
     thread_id: str,
     run_id: str,
-    api_key: str = Depends(verify_api_key)
+    _api_key: str = Depends(verify_api_key)
 ):
     return await assistant_manager.get_run(thread_id, run_id)
 

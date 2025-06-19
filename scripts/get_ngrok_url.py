@@ -1,40 +1,45 @@
 #!/usr/bin/env python
-import requests
-import json
+# pylint: disable=import-error
+"""Retrieve the public ngrok URL."""
 import sys
+
+import requests
+
 
 def get_ngrok_url():
     """Get the current ngrok public URL"""
     try:
         response = requests.get("http://localhost:4040/api/tunnels", timeout=5)
         response.raise_for_status()
-        
+
         data = response.json()
         tunnels = data.get("tunnels", [])
-        
+
         for tunnel in tunnels:
             if tunnel.get("proto") == "https":
-                url = tunnel.get("public_url")
-                if url:
-                    return url
-        
+                public_url = tunnel.get("public_url")
+                if public_url:
+                    return public_url
+
         # Fallback to http if https not found
         for tunnel in tunnels:
             if tunnel.get("proto") == "http":
-                url = tunnel.get("public_url")
-                if url:
-                    return url.replace("http://", "https://")
-        
+                public_url = tunnel.get("public_url")
+                if public_url:
+                    return public_url.replace("http://", "https://")
+
         return None
-        
+
     except requests.exceptions.RequestException as e:
         print(f"Error connecting to ngrok: {e}", file=sys.stderr)
         return None
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error parsing ngrok response: {e}", file=sys.stderr)
         return None
 
-if __name__ == "__main__":
+
+def main() -> None:
+    """Entry point for script."""
     url = get_ngrok_url()
     if url:
         print(f"Ngrok URL: {url}")
@@ -42,3 +47,7 @@ if __name__ == "__main__":
     else:
         print("Could not get ngrok URL. Make sure ngrok is running.")
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
