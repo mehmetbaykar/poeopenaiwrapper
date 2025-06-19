@@ -12,7 +12,7 @@ def check_health():
     try:
         response = requests.get("http://localhost:8000/health", timeout=5)
         return response.status_code == 200
-    except:
+    except requests.RequestException:
         return False
 
 def wait_for_service(max_wait=30):
@@ -28,6 +28,11 @@ def wait_for_service(max_wait=30):
     print("⚠️ POE Wrapper service may not be ready yet")
     return False
 
-if __name__ == "__main__":
+def main() -> None:
+    """Entry point for script."""
     success = wait_for_service()
     sys.exit(0 if success else 1)
+
+
+if __name__ == "__main__":
+    main()
