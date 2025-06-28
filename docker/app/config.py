@@ -65,7 +65,7 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
     "llama-3.3-70b-fw": {"client_name": "meta-llama-3.3-70b-fw", "poe_name": "llama-3.3-70b-fw", "reasoning": True, "websearch": False},
     "llama-3.3-70b": {"client_name": "meta-llama-3.3-70b", "poe_name": "llama-3.3-70b", "reasoning": True, "websearch": False},
     
-    # DeepSeek - keep unchanged as requested
+    # DeepSeek
     "deepseek-r1": {"client_name": "deepseek-r1", "poe_name": "deepseek-r1", "reasoning": True, "websearch": False},
     "deepseek-r1-fw": {"client_name": "deepseek-r1-fw", "poe_name": "deepseek-r1-fw", "reasoning": True, "websearch": False},
     "deepseek-r1-distill": {"client_name": "deepseek-r1-distill", "poe_name": "deepseek-r1-distill", "reasoning": True, "websearch": False},
@@ -78,7 +78,7 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
     "grok-3-mini": {"client_name": "xai-grok-3-mini", "poe_name": "grok-3-mini", "reasoning": True, "websearch": False},
     "grok-3": {"client_name": "xai-grok-3", "poe_name": "grok-3", "reasoning": True, "websearch": False},
 
-    # Perplexity - keep unchanged as requested
+    # Perplexity
     "perplexity-sonar-reasoning": {"client_name": "perplexity-sonar-reasoning", "poe_name": "perplexity-sonar-reasoning", "reasoning": True, "websearch": False},
     "perplexity-sonar-rsn": {"client_name": "perplexity-sonar-rsn", "poe_name": "perplexity-sonar-rsn", "reasoning": True, "websearch": True},
     "perplexity-sonar-rsn-pro": {"client_name": "perplexity-sonar-rsn-pro", "poe_name": "perplexity-sonar-rsn-pro", "reasoning": True, "websearch": True},
@@ -116,7 +116,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
     "web-search": {"client_name": "poe-web-search", "poe_name": "web-search", "reasoning": False, "websearch": True},
 }
 
-# Helper function
 def get_poe_name_for_client(client_name: str) -> str:
     """Get POE model name for a client display name"""
     for poe_name, props in MODEL_CATALOG.items():
