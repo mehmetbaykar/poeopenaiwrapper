@@ -78,7 +78,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="Poe-OpenAI-Wrapper",
     description="An OpenAI-compatible API wrapper for Poe.com.",
-    version="0.1.0",
+    version="0.5.0",
 )
 
 app.add_middleware(RequestLoggingMiddleware)

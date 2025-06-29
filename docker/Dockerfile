@@ -2,7 +2,7 @@ FROM python:3.12-slim AS base
 
 LABEL maintainer="Mehmet Baykar"
 LABEL description="OpenAI-compatible API wrapper for POE"
-LABEL version="0.0.1"
+LABEL version="0.5.0"
 
 WORKDIR /app
 
