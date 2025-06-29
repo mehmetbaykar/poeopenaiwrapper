@@ -54,16 +54,34 @@ class FileManager:
             raise FileUploadError("File must have a filename.", 400)
 
         max_size = MAX_FILE_SIZE_MB * 1024 * 1024
-        if file.size and file.size > max_size:
+
+        # FastAPI's UploadFile does NOT expose a .size attribute by default.
+        # We attempt to determine size safely; if not available, we skip the check.
+        file_size = getattr(file, "size", None)
+        if file_size is None:
+            try:
+                current_pos = awaitable_seek_pos = None
+            except Exception:
+                pass
+        if file_size is None:
+            try:
+                current_pos = file.file.tell()
+                file.file.seek(0, os.SEEK_END)
+                file_size = file.file.tell()
+                file.file.seek(current_pos)
+            except Exception:
+                file_size = None
+
+        if file_size and file_size > max_size:
             raise FileUploadError(
                 f"File size exceeds {MAX_FILE_SIZE_MB}MB limit.", 413
             )
 
-        if file.content_type not in ALLOWED_FILE_TYPES:
+        content_type = getattr(file, "content_type", None)
+        if content_type and content_type not in ALLOWED_FILE_TYPES:
             raise FileUploadError(
-                f"File type '{file.content_type}' not supported.", 415
+                f"File type '{content_type}' not supported.", 415
             )
-
 
     @staticmethod
     async def upload_file_to_poe(file: UploadFile) -> fp.Attachment:
@@ -72,13 +90,17 @@ class FileManager:
 
         try:
             contents = await file.read()
+            
+            # Create a temporary file to match Poe's documentation pattern
             with FileManager._temporary_file(
                 contents, file.filename or "unknown"
             ) as temp_file_path:
+                # Open file and upload as shown in Poe docs
                 with open(temp_file_path, "rb") as f:
-                    # Use the correct fastapi_poe function signature
                     attachment = await asyncio.to_thread(
-                        fp.upload_file_sync, f, api_key=POE_API_KEY or ""
+                        fp.upload_file_sync, 
+                        f, 
+                        api_key=POE_API_KEY
                     )
 
             logger.info("Successfully uploaded file %s to Poe", file.filename)
@@ -95,10 +117,12 @@ class FileManager:
     async def upload_local_file_to_poe(file_path: str) -> fp.Attachment:
         """Uploads a local file to Poe and returns the attachment."""
         try:
+            # Open file and upload as shown in Poe docs
             with open(file_path, "rb") as f:
-                # Use the correct fastapi_poe function signature
                 attachment = await asyncio.to_thread(
-                    fp.upload_file_sync, f, api_key=POE_API_KEY or ""
+                    fp.upload_file_sync,
+                    f,
+                    api_key=POE_API_KEY
                 )
             
             logger.info("Successfully uploaded local file %s to Poe", file_path)
@@ -109,28 +133,40 @@ class FileManager:
             raise FileUploadError(f"Failed to upload file: {e}", 500) from e
 
     async def process_files(self, files: Optional[List[UploadFile]]) -> List[fp.Attachment]:
-        """Processes a list of uploaded files."""
+        """Processes a list of uploaded files and returns Poe attachments."""
         if not files:
+            logger.info("No files to process")
             return []
 
+        logger.info("Processing %d files for upload", len(files))
         attachments = []
-        for file in files:
+        
+        for i, file in enumerate(files):
+            logger.info("Processing file %d: %s (size: %s, content_type: %s)", 
+                       i + 1, file.filename, getattr(file, 'size', 'unknown'), 
+                       getattr(file, 'content_type', 'unknown'))
+            
+            # Upload file to Poe and get attachment
             attachment = await FileManager.upload_file_to_poe(file)
             attachments.append(attachment)
             
-            # Store file metadata in memory database
+            logger.info("File %s uploaded successfully, attachment: %s", 
+                       file.filename, attachment)
+            
+            # Store file metadata in memory database for tracking
             file_id = f"file_{len(self.files_db)}_{int(time.time())}"
             file_obj = FileObject(
                 id=file_id,
                 object="file",
-                bytes=file.size or 0,
+                bytes=getattr(file, 'size', 0) or 0,
                 created_at=int(time.time()),
                 filename=file.filename or "unknown",
                 purpose="assistants"
             )
             self.files_db[file_obj.id] = file_obj
 
-        logger.info("Successfully processed %d files", len(attachments))
+        logger.info("Successfully processed %d files for Poe, attachments: %s", 
+                   len(attachments), attachments)
         return attachments
 
     async def list_files(self) -> FileListResponse:

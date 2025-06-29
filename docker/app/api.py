@@ -200,6 +200,7 @@ class APIHandler:
         request: ChatCompletionRequest,
         request_id: str,
         poe_model_name: str,
+        attachments: Optional[List["fp.Attachment"]] = None,
     ) -> StreamingResponse:
         """Creates a streaming response for chat completions."""
 
@@ -210,7 +211,7 @@ class APIHandler:
                 thinking_started = False
                 thinking_finished = False
                 
-                poe_messages = await PoeClient.convert_to_poe_messages(request.messages)
+                poe_messages = await PoeClient.convert_to_poe_messages(request.messages, attachments or [])
 
                 async for partial in self.poe_client.get_streaming_response(
                     poe_messages, poe_model_name
@@ -341,7 +342,7 @@ class APIHandler:
 
         if request.stream:
             return await self.create_streaming_response(
-                request, request_id, poe_model_name
+                request, request_id, poe_model_name, attachments
             )
 
         poe_messages = await PoeClient.convert_to_poe_messages(

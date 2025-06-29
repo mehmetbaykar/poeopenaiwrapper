@@ -138,9 +138,16 @@ async def create_chat_completion(request: Request):
     """Creates a chat completion, with or without file attachments."""
     attachments = []
     content_type = request.headers.get("content-type", "")
+    
+    logger.info("Chat completion request with content-type: %s", content_type)
 
     if "multipart/form-data" in content_type:
+        logger.info("Processing multipart form data request")
         form = await request.form()
+        
+        # Log all form fields
+        logger.debug("Form fields: %s", list(form.keys()))
+        
         request_json_str = form.get("request")
         if not request_json_str or not isinstance(request_json_str, str):
             raise PoeAPIError(
@@ -153,11 +160,16 @@ async def create_chat_completion(request: Request):
             raise PoeAPIError(f"Invalid JSON in 'request' form field: {e}", 400) from e
 
         form_files = form.getlist("files")
+        logger.info("Found %d files in form data", len(form_files))
+        
         if form_files:
             upload_files = [f for f in form_files if isinstance(f, UploadFile)]
+            logger.info("Processing %d upload files", len(upload_files))
             attachments = await file_manager.process_files(upload_files)
+            logger.info("Created %d attachments from files", len(attachments))
 
     elif "application/json" in content_type:
+        logger.info("Processing JSON request")
         try:
             request_data = await request.json()
             chat_request = ChatCompletionRequest(**request_data)
@@ -166,6 +178,7 @@ async def create_chat_completion(request: Request):
     else:
         raise PoeAPIError(f"Unsupported content-type: {content_type}", 415)
 
+    logger.info("Calling create_chat_completion with %d attachments", len(attachments))
     return await api_handler.create_chat_completion(chat_request, attachments)
 
 

@@ -10,6 +10,8 @@ import urllib.parse
 import os
 import mimetypes
 import aiofiles
+import base64
+import tempfile
 
 import fastapi_poe as fp
 from fastapi import UploadFile
@@ -119,7 +121,7 @@ class PoeClient:
 
     @staticmethod
     def _extract_text_content(content) -> str:
-        """Extracts text content from a message."""
+        """Extracts text content from a message, including handling image URLs."""
         if isinstance(content, str):
             return content
         if isinstance(content, list):
@@ -128,6 +130,19 @@ class PoeClient:
                 if isinstance(item, dict):
                     if item.get("type") == "text" and "text" in item:
                         text_parts.append(item["text"])
+                    elif item.get("type") == "image_url" and "image_url" in item:
+                        # Handle image URLs - they might be base64 or regular URLs
+                        image_url = item["image_url"].get("url", "")
+                        if image_url.startswith("data:image"):
+                            # Base64 image - we'll need to handle this differently
+                            logger.warning("Base64 image found in content - not yet supported")
+                            text_parts.append("[Base64 image - upload not yet implemented]")
+                        elif image_url.startswith("file://"):
+                            # File URI - will be handled by _extract_and_upload_attachments
+                            text_parts.append(f"[{image_url}]")
+                        else:
+                            # Regular URL
+                            text_parts.append(f"[Image: {image_url}]")
                     elif "text" in item:
                         text_parts.append(item["text"])
                 elif isinstance(item, str):
@@ -141,7 +156,7 @@ class PoeClient:
     ) -> Tuple[str, List[fp.Attachment]]:
         """Extracts file URIs, uploads them, and returns cleaned text and attachments."""
         attachments = []
-        # Corrected regex to not include the trailing bracket
+        # Pattern to match file:// URIs in markdown links or standalone
         file_pattern = r"\[.*?\]\((file://.*?)\)|(file://[^\s\)]+)"
         
         mutable_content = text_content
@@ -160,6 +175,7 @@ class PoeClient:
 
                 local_file = LocalUploadFile(file_path)
                 
+                # Upload the local file to Poe and get attachment
                 attachment = await FileManager.upload_local_file_to_poe(file_path)
                 attachments.append(attachment)
                 
@@ -179,25 +195,106 @@ class PoeClient:
         return mutable_content.strip(), list(reversed(attachments))
 
     @staticmethod
+    async def _extract_and_upload_base64_images(content) -> Tuple[str, List[fp.Attachment]]:
+        """Extracts base64 images from structured content and uploads them to Poe."""
+        if not isinstance(content, list):
+            return str(content) if content else "", []
+        
+        text_parts = []
+        attachments = []
+        
+        for item in content:
+            if isinstance(item, dict):
+                if item.get("type") == "text" and "text" in item:
+                    text_parts.append(item["text"])
+                elif item.get("type") == "image_url" and "image_url" in item:
+                    image_url = item["image_url"].get("url", "")
+                    
+                    if image_url.startswith("data:image"):
+                        # Extract base64 data
+                        try:
+                            # Parse data URL: data:image/png;base64,iVBORw0KGgo...
+                            header, base64_data = image_url.split(",", 1)
+                            mime_match = re.match(r"data:(image/\w+);base64", header)
+                            mime_type = mime_match.group(1) if mime_match else "image/png"
+                            
+                            # Decode base64 to bytes
+                            image_bytes = base64.b64decode(base64_data)
+                            
+                            # Create temporary file
+                            extension = mime_type.split("/")[-1]
+                            with tempfile.NamedTemporaryFile(
+                                delete=False, 
+                                suffix=f".{extension}"
+                            ) as temp_file:
+                                temp_file.write(image_bytes)
+                                temp_path = temp_file.name
+                            
+                            try:
+                                # Upload to Poe
+                                attachment = await FileManager.upload_local_file_to_poe(temp_path)
+                                attachments.append(attachment)
+                                logger.info("Successfully uploaded base64 image as attachment")
+                            finally:
+                                # Clean up temp file
+                                if os.path.exists(temp_path):
+                                    os.unlink(temp_path)
+                                    
+                        except Exception as e:
+                            logger.error("Failed to process base64 image: %s", e)
+                            text_parts.append("[Failed to process base64 image]")
+                    
+                    elif image_url.startswith("file://"):
+                        # File URI - will be handled separately
+                        text_parts.append(f"[{image_url}]")
+                    else:
+                        # Regular URL - Poe doesn't support URL images directly
+                        text_parts.append(f"[Image URL: {image_url}]")
+                        
+                elif "text" in item:
+                    text_parts.append(item["text"])
+            elif isinstance(item, str):
+                text_parts.append(item)
+                
+        return "\n".join(text_parts), attachments
+
+    @staticmethod
     async def convert_to_poe_messages(
         messages: List[ChatMessage], attachments: Optional[List[fp.Attachment]] = None
     ) -> List[fp.ProtocolMessage]:
-        """Converts a list of chat messages to a list of Poe protocol messages."""
+        """Converts chat messages to Poe protocol messages following the official pattern."""
         if not messages:
             raise PoeAPIError("At least one message is required.", 400)
 
-        poe_messages = []
-        all_attachments = list(attachments) if attachments else []
+        logger.info("Converting %d messages to Poe format with %d explicit attachments", 
+                   len(messages), len(attachments) if attachments else 0)
 
-        for msg in messages:
+        poe_messages: List[fp.ProtocolMessage] = []
+        all_attachments: List[fp.Attachment] = []
+
+        # Process messages and extract any embedded file URIs or base64 images
+        for i, msg in enumerate(messages):
             role_mapping = {"assistant": "bot", "user": "user", "system": "system"}
             poe_role = role_mapping.get(msg.role, "user")
 
-            text_content = PoeClient._extract_text_content(msg.content)
+            # First, check if content contains base64 images (structured content)
+            text_content, base64_attachments = await PoeClient._extract_and_upload_base64_images(msg.content)
             
-            cleaned_content, new_attachments = await PoeClient._extract_and_upload_attachments(text_content)
-            if new_attachments:
-                all_attachments.extend(new_attachments)
+            if base64_attachments:
+                logger.info("Found %d base64 images in message %d", len(base64_attachments), i)
+                all_attachments.extend(base64_attachments)
+            else:
+                # If no base64 images, extract text normally
+                text_content = PoeClient._extract_text_content(msg.content)
+            
+            logger.debug("Message %d (%s): content length=%d", i, msg.role, len(text_content))
+
+            # Handle file:// URIs embedded in the content
+            cleaned_content, embedded_attachments = await PoeClient._extract_and_upload_attachments(text_content)
+
+            if embedded_attachments:
+                logger.info("Found %d embedded file URIs in message %d", len(embedded_attachments), i)
+                all_attachments.extend(embedded_attachments)
                 text_content = cleaned_content
 
             valid_role = cast(Literal["system", "user", "bot"], poe_role)
@@ -205,22 +302,38 @@ class PoeClient:
             poe_message = fp.ProtocolMessage(
                 role=valid_role,
                 content=text_content or "",
-                attachments=[],
+                attachments=[]  # Don't attach here, we'll add all to last user message
             )
+
             poe_messages.append(poe_message)
 
-        if poe_messages and all_attachments:
-            last_user_message_index = -1
+        # Add any explicitly provided attachments
+        if attachments:
+            logger.info("Adding %d explicit attachments to collection", len(attachments))
+            all_attachments.extend(attachments)
+
+        # According to Poe docs, attach all files to the last user message
+        if all_attachments:
+            # Find the last user message
+            last_user_idx = -1
             for i in range(len(poe_messages) - 1, -1, -1):
                 if poe_messages[i].role == "user":
-                    last_user_message_index = i
+                    last_user_idx = i
                     break
-            
-            if last_user_message_index != -1:
-                poe_messages[last_user_message_index].attachments.extend(all_attachments)
-            else:
-                poe_messages[-1].attachments.extend(all_attachments)
 
+            if last_user_idx != -1:
+                # Add all attachments to the last user message
+                poe_messages[last_user_idx].attachments = all_attachments
+                logger.info("Added %d attachments to last user message at index %d", 
+                           len(all_attachments), last_user_idx)
+            else:
+                # If no user message found, add to the last message as fallback
+                poe_messages[-1].attachments = all_attachments
+                logger.warning("No user message found, adding attachments to last message")
+        else:
+            logger.warning("No attachments found to add to messages")
+
+        logger.info("Converted messages successfully, returning %d Poe messages", len(poe_messages))
         return poe_messages
 
     async def get_streaming_response(
