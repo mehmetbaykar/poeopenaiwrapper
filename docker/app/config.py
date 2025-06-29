@@ -114,6 +114,7 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
     "assistant": {"client_name": "poe-assistant", "poe_name": "assistant", "reasoning": False, "websearch": False},
     "app-creator": {"client_name": "poe-app-creator", "poe_name": "app-creator", "reasoning": False, "websearch": False},
     "web-search": {"client_name": "poe-web-search", "poe_name": "web-search", "reasoning": False, "websearch": True},
+    "python": {"client_name": "poe-python", "poe_name": "python", "reasoning": False, "websearch": False},
 }
 
 def get_poe_name_for_client(client_name: str) -> str:
