@@ -11,15 +11,42 @@ LOCAL_API_KEY = os.getenv("LOCAL_API_KEY", "your-local-api-key")
 MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "50"))
 
 ALLOWED_FILE_TYPES = [
+    # Text-based formats
     "text/plain",
     "text/markdown",
     "text/csv",
-    "application/pdf",
     "application/json",
+    "text/html",
+    "text/xml",
+    "application/rtf",
+
+    # Python and other code
+    "text/x-python",
+    "application/x-python-code",
+    "text/x-script.python",
+    "application/javascript",
+    "text/javascript",
+
+    # Documents
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document", # .docx
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", # .xlsx
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation", # .pptx
+
+    # Images
     "image/jpeg",
     "image/png",
     "image/gif",
     "image/webp",
+    "image/svg+xml",
+
+    # Archives
+    "application/zip",
+    "application/x-tar",
+    "application/gzip",
 ]
 
 MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
