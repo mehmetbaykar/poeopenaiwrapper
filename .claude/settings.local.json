@@ -3,7 +3,9 @@
     "allow": [
       "Bash(python:*)",
       "Bash(pylint:*)",
-      "Bash(docker:*)"
+      "Bash(docker:*)",
+      "Bash(rg:*)",
+      "WebFetch(domain:pypi.org)"
     ],
     "deny": []
   }
