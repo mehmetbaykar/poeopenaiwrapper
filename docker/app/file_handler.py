@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 import tempfile
+import time
 from contextlib import contextmanager
 from typing import Generator, List, Optional
 
@@ -75,7 +76,7 @@ class FileManager:
                 contents, file.filename or "unknown"
             ) as temp_file_path:
                 with open(temp_file_path, "rb") as f:
-                    # Use async version for better performance in async context
+                    # Use the correct fastapi_poe function signature
                     attachment = await asyncio.to_thread(
                         fp.upload_file_sync, f, api_key=POE_API_KEY or ""
                     )
@@ -91,7 +92,23 @@ class FileManager:
             raise FileUploadError(f"Failed to upload file: {e}", 500) from e
 
     @staticmethod
-    async def process_files(files: Optional[List[UploadFile]]) -> List[fp.Attachment]:
+    async def upload_local_file_to_poe(file_path: str) -> fp.Attachment:
+        """Uploads a local file to Poe and returns the attachment."""
+        try:
+            with open(file_path, "rb") as f:
+                # Use the correct fastapi_poe function signature
+                attachment = await asyncio.to_thread(
+                    fp.upload_file_sync, f, api_key=POE_API_KEY or ""
+                )
+            
+            logger.info("Successfully uploaded local file %s to Poe", file_path)
+            return attachment
+            
+        except Exception as e:
+            logger.error("Failed to upload local file %s to Poe: %s", file_path, e)
+            raise FileUploadError(f"Failed to upload file: {e}", 500) from e
+
+    async def process_files(self, files: Optional[List[UploadFile]]) -> List[fp.Attachment]:
         """Processes a list of uploaded files."""
         if not files:
             return []
@@ -100,6 +117,18 @@ class FileManager:
         for file in files:
             attachment = await FileManager.upload_file_to_poe(file)
             attachments.append(attachment)
+            
+            # Store file metadata in memory database
+            file_id = f"file_{len(self.files_db)}_{int(time.time())}"
+            file_obj = FileObject(
+                id=file_id,
+                object="file",
+                bytes=file.size or 0,
+                created_at=int(time.time()),
+                filename=file.filename or "unknown",
+                purpose="assistants"
+            )
+            self.files_db[file_obj.id] = file_obj
 
         logger.info("Successfully processed %d files", len(attachments))
         return attachments

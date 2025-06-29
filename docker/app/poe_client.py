@@ -160,7 +160,7 @@ class PoeClient:
 
                 local_file = LocalUploadFile(file_path)
                 
-                attachment = await FileManager.upload_file_to_poe(local_file)
+                attachment = await FileManager.upload_local_file_to_poe(file_path)
                 attachments.append(attachment)
                 
                 # Replace the URI with an empty string
