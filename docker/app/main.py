@@ -8,7 +8,7 @@ import time
 import traceback
 from typing import List
 
-from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -138,16 +138,15 @@ async def create_chat_completion(request: Request):
     """Creates a chat completion, with or without file attachments."""
     attachments = []
     content_type = request.headers.get("content-type", "")
-    
+
     logger.info("Chat completion request with content-type: %s", content_type)
 
     if "multipart/form-data" in content_type:
         logger.info("Processing multipart form data request")
         form = await request.form()
-        
-        # Log all form fields
+
         logger.debug("Form fields: %s", list(form.keys()))
-        
+
         request_json_str = form.get("request")
         if not request_json_str or not isinstance(request_json_str, str):
             raise PoeAPIError(
@@ -161,11 +160,11 @@ async def create_chat_completion(request: Request):
 
         form_files = form.getlist("files")
         logger.info("Found %d files in form data", len(form_files))
-        
+
         if form_files:
-            upload_files = [f for f in form_files if isinstance(f, UploadFile)]
-            logger.info("Processing %d upload files", len(upload_files))
-            attachments = await file_manager.process_files(upload_files)
+            files_to_upload = [f for f in form_files if isinstance(f, UploadFile)]
+            logger.info("Processing %d upload files", len(files_to_upload))
+            attachments = await file_manager.process_files(files_to_upload)
             logger.info("Created %d attachments from files", len(attachments))
 
     elif "application/json" in content_type:

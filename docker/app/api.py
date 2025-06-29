@@ -210,8 +210,10 @@ class APIHandler:
                 accumulated_content = ""
                 thinking_started = False
                 thinking_finished = False
-                
-                poe_messages = await PoeClient.convert_to_poe_messages(request.messages, attachments or [])
+
+                poe_messages = await PoeClient.convert_to_poe_messages(
+                    request.messages, attachments or []
+                )
 
                 async for partial in self.poe_client.get_streaming_response(
                     poe_messages, poe_model_name
@@ -348,13 +350,15 @@ class APIHandler:
         poe_messages = await PoeClient.convert_to_poe_messages(
             request.messages, attachments or []
         )
-        
+
         complete_text, reasoning_tokens = await self.poe_client.get_complete_response(
             poe_messages, poe_model_name
         )
 
         usage_kwargs = self._calculate_token_usage(request, complete_text)
-        completion_details, prompt_details = self._create_token_details(request, reasoning_tokens)
+        completion_details, prompt_details = self._create_token_details(
+            request, reasoning_tokens
+        )
 
         logger.info(
             "Generated response with %d tokens (%d reasoning) for request %s",
