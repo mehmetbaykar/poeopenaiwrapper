@@ -1,8 +1,9 @@
 aiofiles
 fastapi-poe
 fastapi
-uvicorn[standard]
-pydantic
 httpx
+pydantic
 python-multipart
 python-dotenv
+requests
+uvicorn[standard]
