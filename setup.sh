@@ -9,7 +9,6 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 POE_API_KEY=""
-NGROK_AUTHTOKEN=""
 LOCAL_API_KEY=""
 ENV_COMPLETE=false
 
@@ -57,7 +56,7 @@ check_env_file() {
     source .env 2>/dev/null || true
     set +o allexport
     
-    [ -n "${POE_API_KEY:-}" ] && [ -n "${NGROK_AUTHTOKEN:-}" ] && [ -n "${LOCAL_API_KEY:-}" ] && {
+    [ -n "${POE_API_KEY:-}" ] && [ -n "${LOCAL_API_KEY:-}" ] && {
         print_status ".env file is complete"
         ENV_COMPLETE=true
         return 0
@@ -82,20 +81,6 @@ get_poe_api_key() {
     }
 }
 
-get_ngrok_token() {
-    [ -n "${NGROK_AUTHTOKEN:-}" ] && {
-        print_status "Ngrok auth token found in .env"
-        return 0
-    }
-    
-    echo "Please get your Ngrok auth token from: https://dashboard.ngrok.com/api-keys"
-    read -p "Enter your Ngrok auth token: " NGROK_AUTHTOKEN
-    
-    [ -n "$NGROK_AUTHTOKEN" ] || {
-        print_error "Ngrok auth token is required"
-        exit 1
-    }
-}
 
 generate_local_api_key() {
     [ -n "${LOCAL_API_KEY:-}" ] && {
@@ -113,7 +98,7 @@ generate_local_api_key() {
 
 create_env_file() {
     print_info "Creating/updating .env file..."
-    python scripts/create_env.py "$POE_API_KEY" "$LOCAL_API_KEY" "$NGROK_AUTHTOKEN" || {
+    python scripts/create_env.py "$POE_API_KEY" "$LOCAL_API_KEY" || {
         print_error "Failed to create .env file"
         exit 1
     }
@@ -126,7 +111,6 @@ setup_configuration() {
     print_info "Setting up environment configuration..."
     
     get_poe_api_key
-    get_ngrok_token
     generate_local_api_key
     create_env_file
 }
@@ -160,32 +144,31 @@ check_service_health() {
     python scripts/check_services.py
 }
 
-get_ngrok_url() {
+get_cloudflare_url() {
     echo ""
-    print_info "Getting Ngrok URL..."
+    print_info "Getting Cloudflare tunnel URL..."
     sleep 5
     
-    local ngrok_output ngrok_url
-    ngrok_output=$(python scripts/get_ngrok_url.py 2>/dev/null)
-    ngrok_url=$(echo "$ngrok_output" | grep "API Base URL:" | cut -d' ' -f4)
+    local cloudflare_output cloudflare_url
+    cloudflare_output=$(python scripts/get_cloudflare_url.py 2>/dev/null)
+    cloudflare_url=$(echo "$cloudflare_output" | grep "API Base URL:" | cut -d' ' -f4)
     
-    echo "$ngrok_url"
+    echo "$cloudflare_url"
 }
 
 display_success_info() {
-    local ngrok_url="$1"
+    local cloudflare_url="$1"
     
-    [ -n "$ngrok_url" ] && {
-        print_status "Ngrok tunnel established"
+    [ -n "$cloudflare_url" ] && {
+        print_status "Cloudflare tunnel established"
         echo ""
         echo "🎉 Setup Complete!"
         echo "=================="
         echo ""
         echo "📋 Configuration Summary:"
         echo "Local API URL: http://localhost:8000/v1"
-        echo "Public API URL: ${ngrok_url}"
+        echo "Public API URL: ${cloudflare_url}"
         echo "Local API Key: ${LOCAL_API_KEY}"
-        echo "Ngrok Dashboard: http://localhost:4040"
         echo ""
         
         #For xCode no need for tunneling
@@ -195,9 +178,9 @@ display_success_info() {
         echo "AI Token Header: x-api-key"
         echo ""
 
-        #Use Ngrok. Cursor doesnt work with localhost. They want to access to the host url from their server.
+        #Use Tunnel. Cursor doesnt work with localhost. They want to access to the host url from their server.
         echo "🔧 Cursor Configuration:"
-        echo "Host URL: ${ngrok_url}"
+        echo "Host URL: ${cloudflare_url}"
         echo "API Token: ${LOCAL_API_KEY}"
         echo ""
 
@@ -205,9 +188,9 @@ display_success_info() {
         echo "View logs: cd docker && docker-compose logs -f poe-wrapper"
         echo "Restart: cd docker && docker-compose restart"
         echo "Stop: cd docker && docker-compose down"
-        echo "Get ngrok URL: python scripts/get_ngrok_url.py"
+        echo "Get cloudflare URL: python scripts/get_cloudflare_url.py"
     } || {
-        print_warning "Could not get ngrok URL automatically"
+        print_warning "Could not get cloudflare URL automatically"
         echo ""
         echo "🎉 Setup Complete!"
         echo "=================="
@@ -215,9 +198,8 @@ display_success_info() {
         echo "📋 Configuration Summary:"
         echo "Local API URL: http://localhost:8000/v1"
         echo "Local API Key: ${LOCAL_API_KEY}"
-        echo "Ngrok Dashboard: http://localhost:4040"
         echo ""
-        echo "To get your ngrok URL, run: python scripts/get_ngrok_url.py"
+        echo "To get your cloudflare URL, run: python scripts/get_cloudflare_url.py"
     }
     
     echo ""
@@ -232,9 +214,9 @@ main() {
     manage_docker_services
     check_service_health
     
-    local ngrok_url
-    ngrok_url=$(get_ngrok_url)
-    display_success_info "$ngrok_url"
+    local cloudflare_url
+    cloudflare_url=$(get_cloudflare_url)
+    display_success_info "$cloudflare_url"
 }
 
 [ "${BASH_SOURCE[0]}" = "${0}" ] && main "$@"

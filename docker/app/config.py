@@ -441,12 +441,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "websearch": False,
     },
     # Perplexity
-    "perplexity-sonar-reasoning": {
-        "client_name": "perplexity-sonar-reasoning",
-        "poe_name": "perplexity-sonar-reasoning",
-        "reasoning": True,
-        "websearch": False,
-    },
     "perplexity-sonar-rsn": {
         "client_name": "perplexity-sonar-rsn",
         "poe_name": "perplexity-sonar-rsn",

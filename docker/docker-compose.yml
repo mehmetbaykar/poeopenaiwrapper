@@ -48,23 +48,12 @@ services:
       - "com.docker.compose.service=poe-wrapper"
       - "com.docker.compose.project=poeopenaiwrapper"
 
-  ngrok:
-    container_name: poe-ngrok
-    image: ngrok/ngrok:latest
+  cloudflared:
+    container_name: poe-cloudflared
+    image: cloudflare/cloudflared:latest
     restart: unless-stopped
     
-    command:
-      - "http"
-      - "poe-wrapper:8000"
-      - "--authtoken=${NGROK_AUTHTOKEN}"
-      - "--log=stdout"
-      - "--log-level=info"
-    
-    ports:
-      - "4040:4040"
-    
-    environment:
-      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    command: tunnel --no-autoupdate --url http://poe-wrapper:8000
     
     networks:
       - poe-network
@@ -74,7 +63,7 @@ services:
         condition: service_healthy
     
     labels:
-      - "com.docker.compose.service=ngrok"
+      - "com.docker.compose.service=cloudflared"
       - "com.docker.compose.project=poeopenaiwrapper"
 
 networks:

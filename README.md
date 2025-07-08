@@ -6,13 +6,16 @@ A local OpenAI-compatible API server wrapping the [POE.com](https://poe.com) API
 
 * **Wraps POE API**: Translates OpenAI-compatible requests to POE-compatible calls.
 * **OpenAI Compatible**: Integrates with any app expecting the OpenAI API format.
-* **Local & Public Access**: Provides both localhost and public access via Ngrok tunneling.
+* **Local & Public Access**: Provides both localhost and secure public access via Cloudflare Tunnel.
 * **File Support**: Manages file uploads and multimodal conversations.
+* **Zero Configuration Tunneling**: No accounts or API keys needed for public access.
+* **Free & Anonymous**: Cloudflare tunnel works without any registration or personal data.
 
 ## Required API Keys
 
 1. **POE API Key**: Obtain from [https://poe.com/api\_key](https://poe.com/api_key)
-2. **Ngrok Auth Token**: Obtain from [https://dashboard.ngrok.com/api-keys](https://dashboard.ngrok.com/api-keys)
+
+> **Note**: No Cloudflare account or API key needed! The tunnel works automatically.
 
 ## Quick Setup
 
@@ -24,10 +27,10 @@ Run the following command:
 
 This setup script performs the following:
 
-* Prompts for your POE API key and Ngrok token.
+* Prompts for your POE API key.
 * Generates a local API key automatically.
 * Launches Docker services.
-* Creates an Ngrok tunnel for public access.
+* Creates a secure Cloudflare tunnel for public access.
 * Displays configuration details upon completion.
 
 ## IDE Configuration
@@ -40,12 +43,12 @@ This setup script performs the following:
 
 ### Cursor IDE Configuration
 
-* **Host URL**: Your Ngrok public URL (e.g., `https://abc123.ngrok.io`)
+* **Host URL**: Your Cloudflare tunnel URL (e.g., `https://your-subdomain.trycloudflare.com`)
 * **API Token**: Your auto-generated `LOCAL_API_KEY`
 
-> **Why Ngrok?**
+> **Why Cloudflare Tunnel?**
 >
-> Cursor IDE doesn't support private hosts. It requires public access URLs. Ngrok provides a secure tunnel from your local environment to the public internet, enabling seamless integration with Cursor or similar applications.
+> Cursor IDE doesn't support private hosts. It requires public access URLs. Cloudflare provides a secure, free tunnel from your local environment to the public internet without requiring any account or configuration.
 
 ## Available API Endpoints
 
@@ -70,8 +73,8 @@ cd docker && docker-compose restart
 # Stop Docker services
 cd docker && docker-compose down
 
-# Retrieve Ngrok URL
-python scripts/get_ngrok_url.py
+# Retrieve Cloudflare tunnel URL
+python scripts/get_cloudflare_url.py
 ```
 
 ## Access URLs
@@ -79,9 +82,11 @@ python scripts/get_ngrok_url.py
 After setup completion, you can access:
 
 * **Local API**: [`http://localhost:8000/v1`](http://localhost:8000/v1)
-* **Public API**: Your Ngrok URL (e.g., `https://your-ngrok-url.ngrok.io/v1`)
-* **Ngrok Dashboard**: [`http://localhost:4040`](http://localhost:4040)
+* **Public API**: Your Cloudflare tunnel URL (e.g., `https://your-subdomain.trycloudflare.com/v1`)
 * **API Documentation**: [`http://localhost:8000/docs`](http://localhost:8000/docs)
+
+
+**Important**: The tunnel URL changes each time you restart the container. This is a security feature that provides additional anonymity.
 
 ## Prerequisites
 
