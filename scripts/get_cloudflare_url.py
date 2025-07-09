@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Module for retrieving Cloudflare tunnel URLs from Docker container logs."""
 import subprocess
 import time
 import re
@@ -25,35 +26,35 @@ def get_cloudflare_url(max_attempts=10, delay=2):
                 text=True,
                 check=False
             )
-            
+
             # Look for the tunnel URL in the logs
             # Cloudflare logs URLs in format: https://[random-subdomain].trycloudflare.com
             pattern = r'https://[a-zA-Z0-9-]+\.trycloudflare\.com'
             matches = re.findall(pattern, result.stdout + result.stderr)
-            
+
             if matches:
                 # Return the most recent URL (last match)
                 return matches[-1]
-            
+
             if attempt < max_attempts - 1:
                 time.sleep(delay)
-                
-        except Exception as e:
+
+        except subprocess.SubprocessError as e:
             print(f"Error checking cloudflare logs: {e}", file=sys.stderr)
             if attempt < max_attempts - 1:
                 time.sleep(delay)
-    
+
     return None
 
 
 def main():
     """Main function to get and display the Cloudflare tunnel URL."""
     print("Getting Cloudflare tunnel URL...")
-    
+
     url = get_cloudflare_url()
-    
+
     if url:
-        print(f"\n✅ Cloudflare tunnel established!")
+        print("\n✅ Cloudflare tunnel established!")
         print(f"API Base URL: {url}/v1")
         print(f"\nYour public API endpoint: {url}/v1")
     else:
