@@ -8,9 +8,12 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# Initialize variables
 POE_API_KEY=""
 LOCAL_API_KEY=""
-ENV_COMPLETE=false
+CUSTOM_DOMAIN=""
+CLOUDFLARE_TUNNEL_TOKEN=""
+USE_CUSTOM_DOMAIN=false
 
 print_status() {
     echo -e "${GREEN}✅ $1${NC}"
@@ -34,85 +37,158 @@ print_banner() {
 }
 
 validate_environment() {
+    # Check Python
     command -v python >/dev/null 2>&1 || {
-        print_error "Python is not installed or not in PATH"
+        print_error "Python is not installed"
+        exit 1
+    }
+    
+    # Check Docker
+    command -v docker >/dev/null 2>&1 || {
+        print_error "Docker is not installed"
+        exit 1
+    }
+    
+    # Check Docker Compose
+    command -v docker-compose >/dev/null 2>&1 || {
+        print_error "Docker Compose is not installed"
         exit 1
     }
 }
 
-setup_directories() {
-    mkdir -p logs
-}
-
-check_env_file() {
-    [ -f ".env" ] || {
-        print_info ".env file not found"
-        return 1
-    }
-    
-    print_info "Found existing .env file, checking configuration..."
-    
-    set -o allexport
-    source .env 2>/dev/null || true
-    set +o allexport
-    
-    [ -n "${POE_API_KEY:-}" ] && [ -n "${LOCAL_API_KEY:-}" ] && {
-        print_status ".env file is complete"
-        ENV_COMPLETE=true
-        return 0
-    }
-    
-    print_warning ".env file exists but is missing required values"
+load_env_file() {
+    if [ -f ".env" ]; then
+        print_info "Loading existing .env file..."
+        set -o allexport
+        source .env 2>/dev/null || true
+        set +o allexport
+        
+        # Validate loaded variables
+        local env_valid=true
+        
+        if [ -z "${POE_API_KEY:-}" ]; then
+            print_warning "POE_API_KEY not found in .env"
+            env_valid=false
+        fi
+        
+        if [ -z "${LOCAL_API_KEY:-}" ] || [ "${LOCAL_API_KEY:-}" = "your-local-api-key" ]; then
+            print_warning "LOCAL_API_KEY not found or invalid in .env"
+            env_valid=false
+        fi
+        
+        # Check if custom domain is configured
+        if [ -n "${CUSTOM_DOMAIN:-}" ] && [ -n "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]; then
+            USE_CUSTOM_DOMAIN=true
+            print_info "Custom domain detected: $CUSTOM_DOMAIN"
+        fi
+        
+        if [ "$env_valid" = true ]; then
+            print_status "Environment variables loaded successfully"
+            return 0
+        fi
+    fi
     return 1
 }
 
 get_poe_api_key() {
-    [ -n "${POE_API_KEY:-}" ] && {
-        print_status "POE API key found in .env"
-        return 0
-    }
-    
-    echo "Please get your POE API key from: https://poe.com/api_key"
-    read -p "Enter your POE API key: " POE_API_KEY
-    
-    [ -n "$POE_API_KEY" ] || {
-        print_error "POE API key is required"
-        exit 1
-    }
+    if [ -z "${POE_API_KEY:-}" ]; then
+        echo ""
+        echo "📋 Get your POE API key from: https://poe.com/api_key"
+        read -p "Enter your POE API key: " POE_API_KEY
+        
+        [ -n "$POE_API_KEY" ] || {
+            print_error "POE API key is required"
+            exit 1
+        }
+    else
+        print_status "Using existing POE API key"
+    fi
 }
 
-
 generate_local_api_key() {
-    [ -n "${LOCAL_API_KEY:-}" ] && {
-        print_status "Local API key found in .env"
+    if [ -z "${LOCAL_API_KEY:-}" ] || [ "${LOCAL_API_KEY:-}" = "your-local-api-key" ]; then
+        print_info "Generating secure API key..."
+        LOCAL_API_KEY=$(python scripts/generate_api_key.py) || {
+            print_error "Failed to generate API key"
+            exit 1
+        }
+        print_status "API key generated"
+    else
+        print_status "Using existing LOCAL API key"
+    fi
+}
+
+setup_custom_domain() {
+    if [ -n "${CUSTOM_DOMAIN:-}" ] && [ -n "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]; then
+        print_status "Custom domain already configured: $CUSTOM_DOMAIN"
+        USE_CUSTOM_DOMAIN=true
         return 0
-    }
+    fi
     
-    print_info "Generating Local API Key..."
-    LOCAL_API_KEY=$(python scripts/generate_api_key.py) || {
-        print_error "Failed to generate API key"
-        exit 1
-    }
-    print_status "Local API key generated: ${LOCAL_API_KEY:0:20}..."
+    echo ""
+    read -p "Use custom domain? (y/N): " use_custom
+    
+    if [ "$use_custom" != "y" ] && [ "$use_custom" != "Y" ]; then
+        USE_CUSTOM_DOMAIN=false
+        return 0
+    fi
+    
+    if [ -z "${CUSTOM_DOMAIN:-}" ]; then
+        read -p "Enter your domain (e.g., example.com): " CUSTOM_DOMAIN
+        [ -n "$CUSTOM_DOMAIN" ] || {
+            print_error "Domain is required"
+            exit 1
+        }
+    fi
+    
+    if [ -z "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]; then
+        echo ""
+        print_info "To get a Cloudflare Tunnel token:"
+        echo "1. Go to https://one.dash.cloudflare.com/"
+        echo "2. Navigate to Networks > Tunnels"
+        echo "3. Create a tunnel and configure:"
+        echo "   - Public hostname: $CUSTOM_DOMAIN"
+        echo "   - Service: http://poe-wrapper:8000"
+        echo "4. Copy the tunnel token"
+        echo ""
+        read -p "Enter your Cloudflare Tunnel token: " CLOUDFLARE_TUNNEL_TOKEN
+        [ -n "$CLOUDFLARE_TUNNEL_TOKEN" ] || {
+            print_error "Token is required for custom domain"
+            exit 1
+        }
+    fi
+    
+    USE_CUSTOM_DOMAIN=true
 }
 
 create_env_file() {
-    print_info "Creating/updating .env file..."
-    python scripts/create_env.py "$POE_API_KEY" "$LOCAL_API_KEY" || {
-        print_error "Failed to create .env file"
-        exit 1
-    }
-}
+    print_info "Creating .env file..."
+    
+    cat > .env << EOF
+# POE API Configuration
+POE_API_KEY=${POE_API_KEY}
 
-setup_configuration() {
-    check_env_file && return 0
+# Local API Configuration  
+LOCAL_API_KEY=${LOCAL_API_KEY}
+
+# Server Configuration
+PORT=8000
+WORKERS=1
+LOG_LEVEL=info
+MAX_FILE_SIZE_MB=50
+ENABLE_HEALTHCHECK=true
+EOF
+
+    if [ "$USE_CUSTOM_DOMAIN" = true ]; then
+        cat >> .env << EOF
+
+# Cloudflare Custom Domain
+CUSTOM_DOMAIN=${CUSTOM_DOMAIN}
+CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+EOF
+    fi
     
-    echo ""
-    print_info "Setting up environment configuration..."
-    
-    get_poe_api_key
-    generate_local_api_key
-    create_env_file
+    print_status ".env file created"
 }
 
 manage_docker_services() {
@@ -121,102 +197,117 @@ manage_docker_services() {
     
     cd docker
     
-    docker-compose ps | grep -q "Up" && {
-        print_info "Services are running, restarting..."
-        docker-compose down
-        docker-compose up --build -d  
-        print_status "Services restarted"
-    } || {
-        print_info "Starting services..."
-        docker-compose up -d || {
+    # Stop any existing containers
+    docker-compose down --remove-orphans 2>/dev/null || true
+    docker-compose -f docker-compose.custom.yml down --remove-orphans 2>/dev/null || true
+    
+    # Build and start with appropriate compose file
+    if [ "$USE_CUSTOM_DOMAIN" = true ]; then
+        print_info "Starting services with custom domain..."
+        docker-compose -f docker-compose.custom.yml up --build -d || {
             print_error "Failed to start services"
             exit 1
         }
-        print_status "Services started"
-    }
+    else
+        print_info "Starting services with random Cloudflare URL..."
+        docker-compose up --build -d || {
+            print_error "Failed to start services"
+            exit 1
+        }
+    fi
     
     cd ..
+    print_status "Services started"
 }
 
 check_service_health() {
     echo ""
     print_info "Checking service health..."
-    python scripts/check_services.py
+    
+    # Wait for services to be ready
+    local max_attempts=30
+    local attempt=0
+    
+    while [ $attempt -lt $max_attempts ]; do
+        if curl -s -f http://localhost:8000/health > /dev/null 2>&1; then
+            print_status "API is healthy"
+            return 0
+        fi
+        attempt=$((attempt + 1))
+        sleep 1
+    done
+    
+    print_warning "API health check timed out - services may still be starting"
 }
 
-get_cloudflare_url() {
-    echo ""
-    print_info "Getting Cloudflare tunnel URL..."
-    sleep 5
-    
-    local cloudflare_output cloudflare_url
-    cloudflare_output=$(python scripts/get_cloudflare_url.py 2>/dev/null)
-    cloudflare_url=$(echo "$cloudflare_output" | grep "API Base URL:" | cut -d' ' -f4)
-    
-    echo "$cloudflare_url"
+get_tunnel_url() {
+    if [ "$USE_CUSTOM_DOMAIN" = true ]; then
+        echo "https://${CUSTOM_DOMAIN}"
+    else
+        # Try to get the random Cloudflare URL
+        sleep 5
+        local url=$(python scripts/get_cloudflare_url.py 2>/dev/null | grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' | head -1)
+        echo "$url"
+    fi
 }
 
 display_success_info() {
-    local cloudflare_url="$1"
+    echo ""
+    echo "🎉 Setup Complete!"
+    echo "=================="
+    echo ""
+    echo "📋 Configuration:"
+    echo "• Local API: http://localhost:8000/v1"
+    echo "• API Key: ${LOCAL_API_KEY}"
     
-    [ -n "$cloudflare_url" ] && {
-        print_status "Cloudflare tunnel established"
-        echo ""
-        echo "🎉 Setup Complete!"
-        echo "=================="
-        echo ""
-        echo "📋 Configuration Summary:"
-        echo "Local API URL: http://localhost:8000/v1"
-        echo "Public API URL: ${cloudflare_url}"
-        echo "Local API Key: ${LOCAL_API_KEY}"
-        echo ""
-        
-        #For xCode no need for tunneling
-        echo "🔧 Xcode Configuration:"
-        echo "Host URL: http://localhost:8000"
-        echo "API Token: ${LOCAL_API_KEY}"
-        echo "AI Token Header: x-api-key"
-        echo ""
-
-        #Use Tunnel. Cursor doesnt work with localhost. They want to access to the host url from their server.
-        echo "🔧 Cursor Configuration:"
-        echo "Host URL: ${cloudflare_url}"
-        echo "API Token: ${LOCAL_API_KEY}"
-        echo ""
-
-        echo "📝 Useful Commands:"
-        echo "View logs: cd docker && docker-compose logs -f poe-wrapper"
-        echo "Restart: cd docker && docker-compose restart"
-        echo "Stop: cd docker && docker-compose down"
-        echo "Get cloudflare URL: python scripts/get_cloudflare_url.py"
-    } || {
-        print_warning "Could not get cloudflare URL automatically"
-        echo ""
-        echo "🎉 Setup Complete!"
-        echo "=================="
-        echo ""
-        echo "📋 Configuration Summary:"
-        echo "Local API URL: http://localhost:8000/v1"
-        echo "Local API Key: ${LOCAL_API_KEY}"
-        echo ""
-        echo "To get your cloudflare URL, run: python scripts/get_cloudflare_url.py"
-    }
+    if [ "$USE_CUSTOM_DOMAIN" = true ]; then
+        echo "• Public URL: https://${CUSTOM_DOMAIN}/v1"
+    else
+        local tunnel_url=$(get_tunnel_url)
+        if [ -n "$tunnel_url" ]; then
+            echo "• Public URL: ${tunnel_url}/v1"
+        else
+            echo ""
+            echo "To get your Cloudflare tunnel URL:"
+            echo "python scripts/get_cloudflare_url.py"
+        fi
+    fi
     
     echo ""
-    echo "🚀 Your POE OpenAI Wrapper is ready to use!"
+    echo "📝 Quick Test:"
+    echo "curl -H \"Authorization: Bearer ${LOCAL_API_KEY}\" http://localhost:8000/v1/models"
+    echo ""
+    echo "🔒 Security: See SECURITY.md for security information"
+    echo ""
 }
 
 main() {
     print_banner
     validate_environment
-    setup_directories
-    setup_configuration
+    
+    # Create necessary directories
+    mkdir -p logs
+    
+    # Try to load existing config
+    if ! load_env_file; then
+        get_poe_api_key
+        generate_local_api_key
+        setup_custom_domain
+        create_env_file
+    else
+        # Still ask about custom domain if not configured
+        if [ -z "${CUSTOM_DOMAIN:-}" ]; then
+            setup_custom_domain
+            if [ "$USE_CUSTOM_DOMAIN" = true ]; then
+                create_env_file
+            fi
+        fi
+    fi
+    
     manage_docker_services
     check_service_health
-    
-    local cloudflare_url
-    cloudflare_url=$(get_cloudflare_url)
-    display_success_info "$cloudflare_url"
+    display_success_info
 }
 
-[ "${BASH_SOURCE[0]}" = "${0}" ] && main "$@"
+# Run main function
+main "$@"

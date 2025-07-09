@@ -19,19 +19,28 @@ A local OpenAI-compatible API server wrapping the [POE.com](https://poe.com) API
 
 ## Quick Setup
 
-Run the following command:
+Just run:
 
 ```bash
 ./setup.sh
 ```
 
-This setup script performs the following:
+The script handles everything automatically:
 
-* Prompts for your POE API key.
-* Generates a local API key automatically.
-* Launches Docker services.
-* Creates a secure Cloudflare tunnel for public access.
-* Displays configuration details upon completion.
+1. **Validates environment** - Checks for Python, Docker, and Docker Compose
+2. **Collects credentials** - Prompts for POE API key if needed
+3. **Generates secure API key** - Creates a strong LOCAL_API_KEY automatically
+4. **Optional custom domain** - Asks if you want to use your own domain
+5. **Starts services** - Launches everything with the right configuration
+6. **Shows your URLs** - Displays both local and public endpoints
+
+### Custom Domain (Optional)
+
+The setup will ask if you want to use a custom domain (e.g., `example.com`):
+- **Yes**: You'll need a Cloudflare tunnel token (instructions provided)
+- **No**: You'll get a random `trycloudflare.com` URL
+
+**That's it!** No code modification needed. The script automatically uses the right Docker Compose file based on your choice.
 
 ## IDE Configuration
 
@@ -86,7 +95,7 @@ After setup completion, you can access:
 * **API Documentation**: [`http://localhost:8000/docs`](http://localhost:8000/docs)
 
 
-**Important**: The tunnel URL changes each time you restart the container. This is a security feature that provides additional anonymity.
+**Important**: By default, the tunnel URL changes each time you restart the container. To use a permanent custom domain (e.g., example.com), run `./setup.sh` and choose the custom domain option when prompted.
 
 ## Prerequisites
 
