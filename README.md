@@ -8,14 +8,13 @@ A local OpenAI-compatible API server wrapping the [POE.com](https://poe.com) API
 * **OpenAI Compatible**: Integrates with any app expecting the OpenAI API format.
 * **Local & Public Access**: Provides both localhost and secure public access via Cloudflare Tunnel.
 * **File Support**: Manages file uploads and multimodal conversations.
-* **Zero Configuration Tunneling**: No accounts or API keys needed for public access.
-* **Free & Anonymous**: Cloudflare tunnel works without any registration or personal data.
+* **Zero Configuration Tunneling**: Random URLs work without any account.
+* **Custom Domain Support**: Use your own domain for permanent URLs.
 
 ## Required API Keys
 
 1. **POE API Key**: Obtain from [https://poe.com/api\_key](https://poe.com/api_key)
-
-> **Note**: No Cloudflare account or API key needed! The tunnel works automatically.
+2. **Cloudflare Tunnel Token** (Optional): Only needed if you want a custom domain instead of random URLs
 
 ## Quick Setup
 
@@ -34,13 +33,44 @@ The script handles everything automatically:
 5. **Starts services** - Launches everything with the right configuration
 6. **Shows your URLs** - Displays both local and public endpoints
 
-### Custom Domain (Optional)
+## Tunneling Options
 
-The setup will ask if you want to use a custom domain (e.g., `example.com`):
-- **Yes**: You'll need a Cloudflare tunnel token (instructions provided)
-- **No**: You'll get a random `trycloudflare.com` URL
+### Option 1: Random URL (Default)
+- **URL**: `https://random-name.trycloudflare.com`
+- **Cost**: FREE
+- **Requirements**: None
+- **Note**: URL changes on each restart
 
-**That's it!** No code modification needed. The script automatically uses the right Docker Compose file based on your choice.
+### Option 2: Custom Domain
+- **URL**: `https://poeapiwrapper.example.com` (your subdomain)
+- **Cost**: FREE (subdomains don't cost extra)
+- **Requirements**: Cloudflare account + domain
+- **Benefit**: Permanent URL that never changes
+
+## Custom Domain Setup
+
+If you choose custom domain during `./setup.sh`, follow these steps:
+
+1. **Create Cloudflare Tunnel**
+   - Go to [https://one.dash.cloudflare.com/](https://one.dash.cloudflare.com/)
+   - Navigate to **Networks** → **Tunnels** → **Create a tunnel**
+   - Select **Cloudflared** → Name your tunnel → **Save tunnel**
+
+2. **Configure Public Hostname**
+   - Click **Configure** → **Public Hostname**
+   - **Subdomain**: Enter desired name (e.g., `poeapiwrapper`)
+   - **Domain**: Select your domain
+   - **Service**: HTTP → `poe-wrapper:8000`
+   - Click **Save**
+
+3. **Get Token**
+   - Go back to tunnel overview
+   - Find the Docker run command
+   - Copy the token (long string after `--token`)
+
+4. **Use in Setup**
+   - When prompted, enter full subdomain (e.g., `poeapiwrapper.example.com`)
+   - Paste the token
 
 ## IDE Configuration
 
@@ -52,12 +82,10 @@ The setup will ask if you want to use a custom domain (e.g., `example.com`):
 
 ### Cursor IDE Configuration
 
-* **Host URL**: Your Cloudflare tunnel URL (e.g., `https://your-subdomain.trycloudflare.com`)
+* **Host URL**: Your Cloudflare tunnel URL
+  - Random: `https://random-name.trycloudflare.com`
+  - Custom: `https://poeapiwrapper.example.com`
 * **API Token**: Your auto-generated `LOCAL_API_KEY`
-
-> **Why Cloudflare Tunnel?**
->
-> Cursor IDE doesn't support private hosts. It requires public access URLs. Cloudflare provides a secure, free tunnel from your local environment to the public internet without requiring any account or configuration.
 
 ## Available API Endpoints
 
@@ -88,14 +116,13 @@ python scripts/get_cloudflare_url.py
 
 ## Access URLs
 
-After setup completion, you can access:
+After setup completion:
 
-* **Local API**: [`http://localhost:8000/v1`](http://localhost:8000/v1)
-* **Public API**: Your Cloudflare tunnel URL (e.g., `https://your-subdomain.trycloudflare.com/v1`)
-* **API Documentation**: [`http://localhost:8000/docs`](http://localhost:8000/docs)
-
-
-**Important**: By default, the tunnel URL changes each time you restart the container. To use a permanent custom domain (e.g., example.com), run `./setup.sh` and choose the custom domain option when prompted.
+* **Local API**: `http://localhost:8000/v1`
+* **Public API**: 
+  - Random: `https://random-name.trycloudflare.com/v1` (changes on restart)
+  - Custom: `https://poeapiwrapper.example.com/v1` (permanent)
+* **API Documentation**: `http://localhost:8000/docs`
 
 ## Prerequisites
 
