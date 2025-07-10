@@ -437,6 +437,12 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
     "grok-3": {
         "client_name": "xai-grok-3",
         "poe_name": "grok-3",
+        "reasoning": False,
+        "websearch": False,
+    },
+    "grok-4": {
+        "client_name": "xai-grok-4",
+        "poe_name": "grok-4",
         "reasoning": True,
         "websearch": False,
     },
