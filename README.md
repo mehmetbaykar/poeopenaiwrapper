@@ -89,11 +89,66 @@ If you choose custom domain during `./setup.sh`, follow these steps:
 
 ## Available API Endpoints
 
+### Core Endpoints
 * `GET /v1/models` – List available models
-* `POST /v1/chat/completions` – Chat completions
-* `POST /v1/completions` – Text completions
-* `POST /v1/moderations` – Moderation tasks
-* `/v1/files` – Manage file uploads
+* `POST /v1/chat/completions` – Chat completions with streaming, tools, and attachments
+* `POST /v1/completions` – Legacy text completions
+* `POST /v1/embeddings` – Generate embeddings (simulated)
+* `POST /v1/moderations` – Content moderation
+
+### Image Generation
+* `POST /v1/images/generations` – Generate images from text
+* `POST /v1/images/edits` – Edit images with prompts
+* `POST /v1/images/variations` – Create image variations
+
+### File Management
+* `GET /v1/files` – List uploaded files
+* `POST /v1/files/upload` – Upload files
+* `GET /v1/files/{file_id}` – Get file details
+* `DELETE /v1/files/{file_id}` – Delete a file
+
+### Assistants API (Beta)
+* `/v1/assistants` – Manage assistants
+* `/v1/threads` – Manage conversation threads
+* `/v1/threads/{thread_id}/messages` – Thread messages
+* `/v1/threads/{thread_id}/runs` – Execute assistant runs
+
+## Important: Real vs Simulated Features
+
+### 🟢 Real Features (Native Poe Support)
+- Chat completions with streaming
+- Temperature control  
+- Stop sequences
+- File/image uploads (including base64)
+- Image generation (DALL-E-3, Stable Diffusion)
+- Function calling (native for GPT, Claude, Llama, DeepSeek, Grok, Perplexity, Qwen models; XML fallback for others)
+
+### 🟡 Simulated Features (Workarounds)
+- **max_tokens**: Via system prompts
+- **response_format**: JSON mode via prompts
+- **Image editing**: Creates new images instead
+
+### 🔴 Fake Features (Not Real)
+- **Embeddings**: LLM-generated vectors (won't work for RAG/similarity)
+- **Moderations**: LLM analysis (not a safety system)
+- **Token counting**: Word-based estimates
+- **Assistants API**: In-memory only (data lost on restart)
+
+### ❌ Ignored Parameters
+`n`, `presence_penalty`, `frequency_penalty`, `top_p`, `seed`, `logit_bias`
+
+## Model Support
+
+All Poe models are available with OpenAI-compatible names:
+
+**Image-Capable Models:**
+- `gpt-4o`, `gpt-image-1` → Can generate and analyze images
+- `claude-3.7-sonnet`, `gemini-2.5-pro` → Can analyze images only
+- Image generation: `dall-e-3`, `stable-diffusion-xl`, `stable-diffusion-3`, `playground-v2`
+
+**Text-Only Models:**
+- `gpt-3.5-turbo`, `llama` models, `deepseek` models
+- Reasoning models: `o1-preview`, `o3-mini`
 
 ## Useful Docker Commands
 
@@ -129,6 +184,96 @@ After setup completion:
 * Python **3.12+**
 * Docker & Docker Compose
 * Active internet connection
+
+## Quick Start for Developers
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="your-local-api-key",
+    base_url="http://localhost:8000/v1"
+)
+
+# Basic chat
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+
+# With image
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{
+        "role": "user",
+        "content": [
+            {"type": "text", "text": "What's in this image?"},
+            {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..."}}
+        ]
+    }]
+)
+
+# Function calling
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "What's the weather?"}],
+    tools=[{
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Get weather info",
+            "parameters": {
+                "type": "object",
+                "properties": {"location": {"type": "string"}},
+                "required": ["location"]
+            }
+        }
+    }]
+)
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **URL changes on restart** (Random URLs)
+   - This is normal behavior for free tunnels
+   - Use `python scripts/get_cloudflare_url.py` to get the new URL
+   - Consider using a custom domain for permanent URLs
+
+2. **Authentication errors**
+   - Verify your POE_API_KEY is correct
+   - Check LOCAL_API_KEY in requests
+   - Ensure x-api-key header is set
+
+3. **Model not found**
+   - Run `GET /v1/models` to see available models
+   - Use exact model names from the list
+
+4. **Image generation issues**
+   - Ensure you're using image models (dall-e-3, stable-diffusion-xl, etc.)
+   - Check response format parameter (url or b64_json)
+
+### Logs
+```bash
+# View application logs
+cd docker && docker-compose logs -f poe-wrapper
+
+# Check specific log files
+tail -f logs/app.log
+tail -f logs/startup.log
+```
+
+## Contributing
+
+Pull requests are welcome! Please ensure:
+- Code follows existing patterns
+- New features include documentation
+- Tests pass (when available)
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Disclaimer
 

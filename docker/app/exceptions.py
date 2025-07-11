@@ -17,10 +17,27 @@ logger = logging.getLogger(__name__)
 class PoeAPIError(Exception):
     """Custom exception for errors related to the Poe API."""
 
-    def __init__(self, message: str, status_code: int = 500):
+    def __init__(
+        self, message: str, status_code: int = 500, error_type: str = None, param: str = None
+    ):
         self.message = message
         self.status_code = status_code
+        self.error_type = error_type or self._get_default_error_type(status_code)
+        self.param = param
         super().__init__(self.message)
+    def _get_default_error_type(self, status_code: int) -> str:
+        """Get default error type based on status code."""
+        error_types = {
+            400: "invalid_request_error",
+            401: "authentication_error",
+            403: "permission_error",
+            404: "not_found_error",
+            429: "rate_limit_error",
+            500: "server_error",
+            502: "server_error",
+            503: "server_error",
+        }
+        return error_types.get(status_code, "server_error")
 
 
 class FileUploadError(Exception):
@@ -70,13 +87,22 @@ async def validation_exception_handler(
 ) -> JSONResponse:
     """Handles validation errors for incoming requests."""
     logger.error("Validation error for %s: %s", request.url, exc.errors())
+    # Format error message in OpenAI style
+    errors = exc.errors()
+    if errors:
+        first_error = errors[0]
+        field = ".".join(str(loc) for loc in first_error.get("loc", []))
+        message = f"{first_error.get('msg', 'Invalid value')} for parameter '{field}'"
+    else:
+        message = "Invalid request format"
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_400_BAD_REQUEST,  # OpenAI uses 400 instead of 422
         content={
             "error": {
-                "message": "Invalid request format.",
-                "type": "validation_error",
-                "details": exc.errors(),
+                "message": message,
+                "type": "invalid_request_error",
+                "param": field if errors else None,
+                "code": None,
             }
         },
     )
@@ -108,15 +134,21 @@ async def poe_api_exception_handler(
 ) -> JSONResponse:
     """Handles exceptions specific to the Poe API."""
     logger.error("Poe API error for %s: %s", request.url, exc.message)
+    error_content = {
+        "error": {
+            "message": exc.message,
+            "type": exc.error_type,
+            "param": exc.param,
+            "code": None,
+        }
+    }
+    # Remove None values
+    error_content["error"] = {
+        k: v for k, v in error_content["error"].items() if v is not None
+    }
     return JSONResponse(
         status_code=exc.status_code,
-        content={
-            "error": {
-                "message": exc.message,
-                "type": "poe_api_error",
-                "code": exc.status_code,
-            }
-        },
+        content=error_content,
     )
 
 

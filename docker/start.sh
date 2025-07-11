@@ -57,7 +57,7 @@ cleanup_port() {
 print_startup_banner() {
     cat << EOF
 =====================================
-  Poe Wrapper v0.0.1
+  Poe Wrapper v0.9.0
 =====================================
 Host: $HOST
 Port: $PORT

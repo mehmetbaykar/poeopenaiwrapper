@@ -343,24 +343,68 @@ class PoeClient:
         logger.info("Converted messages successfully, returning %d Poe messages", len(poe_messages))
         return poe_messages
 
-    async def get_streaming_response(
-        self, messages: List[fp.ProtocolMessage], model: str
+    async def get_streaming_response(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self, messages: List[fp.ProtocolMessage], model: str,
+        temperature: Optional[float] = None,
+        stop_sequences: Optional[List[str]] = None,
+        tools: Optional[List[fp.ToolDefinition]] = None
     ) -> AsyncGenerator[fp.PartialResponse, None]:
         """Gets a streaming response from the Poe API."""
         try:
             logger.info("Starting streaming response for model %s", model)
             logger.debug("Messages being sent to POE: %s", messages)
-            async for partial in fp.get_bot_response(
-                messages=messages, bot_name=model, api_key=self.api_key
-            ):
-                logger.debug("Received partial response: %s", partial)
-                yield partial
+
+            # When we have tools but no executables (proxy mode), we should use stream_request_base
+            # instead of get_bot_response which requires tool_executables
+            if tools:
+                logger.info("Using native Poe function calling with %d tools", len(tools))
+                request = fp.QueryRequest(
+                    query=messages,
+                    user_id="",
+                    conversation_id="",
+                    message_id="",
+                    version="1.0",
+                    type="query"
+                )
+                async for partial in fp.stream_request(
+                    request=request,
+                    bot_name=model,
+                    api_key=self.api_key
+                ):
+                    logger.debug("Received partial response: %s", partial)
+                    yield partial
+            else:
+                # No tools, use the simpler get_bot_response
+                async for partial in fp.get_bot_response(
+                    messages=messages, bot_name=model, api_key=self.api_key,
+                    temperature=temperature,
+                    stop_sequences=stop_sequences or []
+                ):
+                    logger.debug("Received partial response: %s", partial)
+                    yield partial
         except Exception as e:
             logger.error("Error streaming from Poe model %s: %s", model, e)
             logger.error("Error type: %s", type(e).__name__)
             logger.error("Full traceback: %s", traceback.format_exc())
 
             error_msg = str(e).lower()
+            error_type_name = type(e).__name__
+
+            # Check for specific Poe errors first
+            if error_type_name == "InvalidParameterError":
+                raise PoeAPIError(
+                    f"Invalid parameter: {e}",
+                    400,
+                    error_type="invalid_request_error"
+                ) from e
+            if error_type_name == "InsufficientFundError":
+                raise PoeAPIError(
+                    "Insufficient funds to process this request",
+                    402,
+                    error_type="insufficient_fund"
+                ) from e
+
+            # Then check error message patterns
             if "unauthorized" in error_msg or "invalid api key" in error_msg:
                 raise AuthenticationError(
                     f"POE API authentication failed for model '{model}'."
@@ -372,14 +416,22 @@ class PoeClient:
                 ) from e
             raise PoeAPIError(f"Error communicating with Poe: {e}", 502) from e
 
-    async def get_complete_response(
-        self, messages: List[fp.ProtocolMessage], model: str
+    async def get_complete_response(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self, messages: List[fp.ProtocolMessage], model: str,
+        temperature: Optional[float] = None,
+        stop_sequences: Optional[List[str]] = None,
+        tools: Optional[List[fp.ToolDefinition]] = None
     ) -> Tuple[str, int]:
         """Gets a complete response from the Poe API."""
         complete_response = ""
         try:
             logger.info("Getting complete response for model %s", model)
-            async for partial in self.get_streaming_response(messages, model):
+            async for partial in self.get_streaming_response(
+                messages, model, temperature, stop_sequences, tools
+            ):
+                # Handle attachment URLs from image generation bots
+                if hasattr(partial, "attachment") and partial.attachment:
+                    complete_response += f"\n![Image]({partial.attachment.url})\n"
                 if hasattr(partial, "text") and partial.text:
                     complete_response += partial.text
 

@@ -26,6 +26,8 @@ from .exceptions import (
     validation_exception_handler,
 )
 from .file_handler import FileManager
+from .image_handler import ImageGenerationHandler
+from .embeddings_handler import EmbeddingsHandler
 from .logging_config import setup_logging
 from .models import (
     AssistantCreateRequest,
@@ -103,6 +105,8 @@ app.add_exception_handler(Exception, general_exception_handler)
 api_handler = APIHandler()
 file_manager = FileManager()
 assistant_manager = AssistantManager()
+image_handler = ImageGenerationHandler()
+embeddings_handler = EmbeddingsHandler()
 
 
 # --- Public API Endpoints ---
@@ -201,6 +205,145 @@ async def create_completion(request: CompletionRequest):
 async def create_moderation(request: ModerationRequest):
     """Creates a moderation request."""
     return await api_handler.create_moderation(request)
+
+
+@protected_router.post("/images/generations")
+async def create_image(request: Request):
+    """Creates images from a text prompt."""
+    try:
+        data = await request.json()
+        return await image_handler.generate_images(
+            prompt=data.get("prompt"),
+            model=data.get("model"),
+            n=data.get("n", 1),
+            size=data.get("size"),
+            quality=data.get("quality"),
+            style=data.get("style"),
+            response_format=data.get("response_format", "url"),
+            user=data.get("user"),
+        )
+    except Exception as e:
+        logger.error("Image generation error: %s", e)
+        raise PoeAPIError(str(e), 500) from e
+
+
+@protected_router.post("/images/edits")
+async def edit_image(request: Request):
+    """Edits an existing image based on a prompt."""
+    try:
+        # Handle multipart form data for image uploads
+        content_type = request.headers.get("content-type", "")
+        if "multipart/form-data" in content_type:
+            form = await request.form()
+
+            # Extract parameters from form
+            prompt = form.get("prompt")
+            image = form.get("image")  # File upload
+            mask = form.get("mask")  # Optional mask file
+            model = form.get("model")
+            n = int(form.get("n", 1))
+            size = form.get("size")
+            response_format = form.get("response_format", "url")
+            user = form.get("user")
+
+            # Process uploaded image file - currently using edit prompt approach
+
+        else:
+            data = await request.json()
+            prompt = data.get("prompt")
+            image = data.get("image")
+            mask = data.get("mask")
+            model = data.get("model")
+            n = data.get("n", 1)
+            size = data.get("size")
+            response_format = data.get("response_format", "url")
+            user = data.get("user")
+
+        return await image_handler.edit_image(
+            image=image,
+            prompt=prompt,
+            mask=mask,
+            model=model,
+            n=n,
+            size=size,
+            response_format=response_format,
+            user=user,
+        )
+    except Exception as e:
+        logger.error("Image edit error: %s", e)
+        raise PoeAPIError(str(e), 500) from e
+
+
+@protected_router.post("/images/variations")
+async def create_image_variation(request: Request):
+    """Creates variations of an existing image."""
+    try:
+        # Handle multipart form data for image uploads
+        content_type = request.headers.get("content-type", "")
+        if "multipart/form-data" in content_type:
+            form = await request.form()
+
+            # Extract parameters from form
+            image = form.get("image")  # File upload
+            model = form.get("model")
+            n = int(form.get("n", 1))
+            size = form.get("size")
+            response_format = form.get("response_format", "url")
+            user = form.get("user")
+
+            # Process uploaded image file - not yet implemented
+
+        else:
+            data = await request.json()
+            image = data.get("image")
+            model = data.get("model")
+            n = data.get("n", 1)
+            size = data.get("size")
+            response_format = data.get("response_format", "url")
+            user = data.get("user")
+
+        return await image_handler.create_image_variation(
+            image=image,
+            model=model,
+            n=n,
+            size=size,
+            response_format=response_format,
+            user=user,
+        )
+    except Exception as e:
+        logger.error("Image variation error: %s", e)
+        raise PoeAPIError(str(e), 500) from e
+
+
+@protected_router.post("/embeddings")
+async def create_embeddings(request: Request):
+    """Creates embeddings for the given input."""
+    try:
+        data = await request.json()
+
+        # Validate required parameters
+        if "input" not in data:
+            raise PoeAPIError(
+                "Missing required parameter: 'input'", 400, "invalid_request_error", "input"
+            )
+
+        if "model" not in data:
+            raise PoeAPIError(
+                "Missing required parameter: 'model'", 400, "invalid_request_error", "model"
+            )
+
+        return await embeddings_handler.create_embeddings(
+            input_data=data["input"],
+            model=data["model"],
+            encoding_format=data.get("encoding_format", "float"),
+            dimensions=data.get("dimensions"),
+            user=data.get("user"),
+        )
+    except PoeAPIError:
+        raise
+    except Exception as e:
+        logger.error("Embeddings error: %s", e)
+        raise PoeAPIError(str(e), 500) from e
 
 
 @protected_router.get("/files")
