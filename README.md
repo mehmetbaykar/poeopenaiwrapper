@@ -143,12 +143,6 @@ All Poe models are available with OpenAI-compatible names:
 
 **Image-Capable Models:**
 - `gpt-4o`, `gpt-image-1` → Can generate and analyze images
-- `claude-3.7-sonnet`, `gemini-2.5-pro` → Can analyze images only
-- Image generation: `dall-e-3`, `stable-diffusion-xl`, `stable-diffusion-3`, `playground-v2`
-
-**Text-Only Models:**
-- `gpt-3.5-turbo`, `llama` models, `deepseek` models
-- Reasoning models: `o1-preview`, `o3-mini`
 
 ## Useful Docker Commands
 
