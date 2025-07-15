@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 
 POE_API_KEY = os.getenv("POE_API_KEY")
 LOCAL_API_KEY = os.getenv("LOCAL_API_KEY", "your-local-api-key")
-MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "50"))
+MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "20"))
 
 ALLOWED_FILE_TYPES = [
     # Text-based formats
@@ -57,7 +57,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "reasoning": False,
         "websearch": False,
         "native_tools": True,
-        "accepts_images": True,
         "generates_images": True,
     },
     "gpt-4o": {
@@ -66,7 +65,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "reasoning": False,
         "websearch": False,
         "native_tools": True,
-        "accepts_images": True,
         "generates_images": True,
     },
     "gpt-4.1": {
@@ -74,7 +72,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "gpt-4.1",
         "reasoning": False,
         "websearch": False,
-        "accepts_images": True,
         "generates_images": False,
     },
     "gpt-4.1-nano": {
@@ -82,7 +79,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "gpt-4.1-nano",
         "reasoning": False,
         "websearch": False,
-        "accepts_images": True,
         "generates_images": False,
     },
     "gpt-4.1-mini": {
@@ -90,7 +86,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "gpt-4.1-mini",
         "reasoning": False,
         "websearch": False,
-        "accepts_images": True,
         "generates_images": False,
     },
     "o3-mini-high": {
@@ -192,21 +187,12 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "accepts_images": False,
         "generates_images": False,
     },
-    "gpt-4.5-preview": {
-        "client_name": "openai-gpt-4.5-preview",
-        "poe_name": "gpt-4.5-preview",
-        "reasoning": True,
-        "websearch": False,
-        "accepts_images": False,
-        "generates_images": False,
-    },
     "gpt-4o-mini": {
         "client_name": "openai-gpt-4o-mini",
         "poe_name": "gpt-4o-mini",
         "reasoning": False,
         "websearch": False,
         "native_tools": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "chatgpt-4o-latest": {
@@ -215,7 +201,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "reasoning": False,
         "websearch": False,
         "native_tools": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "gpt-4o-search": {
@@ -224,7 +209,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "reasoning": False,
         "websearch": True,
         "native_tools": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "gpt-4o-mini-search": {
@@ -233,7 +217,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "reasoning": False,
         "websearch": True,
         "native_tools": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     # Anthropic
@@ -242,7 +225,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "claude-3.7-sonnet",
         "reasoning": False,
         "websearch": False,
-        "accepts_images": True,
         "generates_images": False,
     },
     "claude-3.7-sonnet-reasoning": {
@@ -250,7 +232,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "claude-3.7-sonnet-reasoning",
         "reasoning": True,
         "websearch": False,
-        "accepts_images": True,
         "generates_images": False,
     },
     "claude-3.7-sonnet-search": {
@@ -258,7 +239,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "claude-3.7-sonnet-search",
         "reasoning": False,
         "websearch": False,
-        "accepts_images": True,
         "generates_images": False,
     },
     "claude-opus-4": {
@@ -267,7 +247,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "reasoning": False,
         "websearch": False,
         "native_tools": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "claude-sonnet-4": {
@@ -276,7 +255,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "reasoning": False,
         "websearch": False,
         "native_tools": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "claude-opus-4-reasoning": {
@@ -285,7 +263,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "reasoning": True,
         "websearch": False,
         "native_tools": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "claude-sonnet-4-reasoning": {
@@ -294,7 +271,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "reasoning": True,
         "websearch": False,
         "native_tools": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "claude-sonnet-3.5": {
@@ -302,7 +278,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "claude-sonnet-3.5",
         "reasoning": False,
         "websearch": False,
-        "accepts_images": True,
         "generates_images": False,
     },
     "claude-haiku-3.5": {
@@ -310,7 +285,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "claude-haiku-3.5",
         "reasoning": False,
         "websearch": False,
-        "accepts_images": True,
         "generates_images": False,
     },
     "claude-opus-4-search": {
@@ -319,7 +293,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "reasoning": False,
         "websearch": True,
         "native_tools": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "claude-sonnet-4-search": {
@@ -328,7 +301,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "reasoning": False,
         "websearch": True,
         "native_tools": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "claude-sonnet-3.7-search": {
@@ -336,7 +308,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "claude-sonnet-3.7-search",
         "reasoning": False,
         "websearch": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "claude-sonnet-3.5-search": {
@@ -344,7 +315,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "claude-sonnet-3.5-search",
         "reasoning": False,
         "websearch": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "claude-haiku-3.5-search": {
@@ -352,7 +322,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "claude-haiku-3.5-search",
         "reasoning": False,
         "websearch": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "claude-opus-3": {
@@ -361,7 +330,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "reasoning": True,
         "websearch": False,
         "native_tools": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     # Google
@@ -370,7 +338,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "gemini-2.5-pro-preview",
         "reasoning": True,
         "websearch": False,
-        "accepts_images": True,
         "generates_images": False,
     },
     "gemini-2.5-flash-preview": {
@@ -378,7 +345,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "gemini-2.5-flash-preview",
         "reasoning": False,
         "websearch": False,
-        "accepts_images": True,
         "generates_images": False,
     },
     "gemini-2.5-pro": {
@@ -386,7 +352,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "gemini-2.5-pro",
         "reasoning": True,
         "websearch": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "gemini-2.5-flash": {
@@ -394,7 +359,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "gemini-2.5-flash",
         "reasoning": True,
         "websearch": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "gemini-2.5-flash-lite-preview": {
@@ -402,7 +366,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "gemini-2.5-flash-lite-preview",
         "reasoning": True,
         "websearch": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "gemini-2.0": {
@@ -410,7 +373,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "gemini-2.0",
         "reasoning": False,
         "websearch": False,
-        "accepts_images": True,
         "generates_images": False,
     },
     "gemini-2.0-flash-preview": {
@@ -418,7 +380,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "gemini-2.0-flash-preview",
         "reasoning": True,
         "websearch": False,
-        "accepts_images": True,
         "generates_images": False,
     },
     "gemini-2.0-flash": {
@@ -426,7 +387,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "gemini-2.0-flash",
         "reasoning": True,
         "websearch": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "gemini-1.5-pro": {
@@ -434,7 +394,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "gemini-1.5-pro",
         "reasoning": True,
         "websearch": False,
-        "accepts_images": True,
         "generates_images": False,
     },
     "gemini-1.5-pro-search": {
@@ -442,7 +401,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "gemini-1.5-pro-search",
         "reasoning": True,
         "websearch": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     "gemini-1.5-flash-search": {
@@ -450,7 +408,6 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "poe_name": "gemini-1.5-flash-search",
         "reasoning": True,
         "websearch": True,
-        "accepts_images": True,
         "generates_images": False,
     },
     # Meta

@@ -698,24 +698,6 @@ class APIHandler:
 
         return messages_list
 
-    def _validate_image_support(
-        self, request: ChatCompletionRequest, attachments: Optional[List["fp.Attachment"]]
-    ) -> None:
-        """Validate that the model supports image input if images are provided."""
-        if attachments or self._has_image_content(request.messages):
-            model_info = MODEL_CATALOG.get(request.model, {})
-            if not model_info.get("accepts_images", False):
-                logger.warning(
-                    "Model %s does not support image input, but images were provided",
-                    request.model
-                )
-                raise PoeAPIError(
-                    f"Model '{request.model}' does not support image input. "
-                    f"Use models like gpt-4o, claude-3.7-sonnet, or "
-                    f"gemini-2.5-pro for image analysis.",
-                    400
-                )
-
     async def _get_non_streaming_response(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
         self,
         request: ChatCompletionRequest,
@@ -829,9 +811,6 @@ class APIHandler:
         except Exception as e:
             logger.error("Model validation failed for %s: %s", poe_model_name, e)
             raise
-
-        # Validate image support
-        self._validate_image_support(request, attachments)
 
         request_id = f"chatcmpl-{uuid.uuid4().hex[:29]}"
 
