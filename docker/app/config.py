@@ -554,6 +554,21 @@ MODEL_CATALOG: Dict[str, Dict[str, Any]] = {
         "accepts_images": False,
         "generates_images": False,
     },
+    # moonshotAi
+    "kimi-k2-instruct": {
+        "client_name": "moonshotai-kimi-k2-instruct",
+        "poe_name": "kimi-k2-instruct",
+        "reasoning": True,
+        "websearch": False,
+        "native_tools": True,
+    },
+    "kimi-k2-t": {
+        "client_name": "moonshotai-kimi-k2-t",
+        "poe_name": "kimi-k2-t",
+        "reasoning": True,
+        "websearch": False,
+        "native_tools": True,
+    },
     # xAi
     "grok-3-mini": {
         "client_name": "xai-grok-3-mini",
